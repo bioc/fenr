@@ -7,7 +7,7 @@ Authors@R: person(
     email = "M.Gierlinski@dundee.ac.uk",
     role = c("aut", "cre"),
     comment = c(ORCID = "0000-0001-9149-3514")
-    )
+    ) 
 Description: Perform fast functional enrichment on feature lists (like genes
     or proteins) using the hypergeometric distribution. Tailored for speed,
     this package is ideal for interactive platforms such as Shiny. It supports
