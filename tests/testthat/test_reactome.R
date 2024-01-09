@@ -25,14 +25,6 @@ expected_gene_association <- tibble::tribble(
   "R-SCE-9749381", "CDC6",
 )
 
-expected_api <- tibble::tribble(
-  ~term_id, ~gene_symbol,
-  "R-SCE-68952", "POL12",
-  "R-SCE-983168", "CDC16",
-  "R-HSA-114608", "CFD",
-  "R-MMU-352230", "Slc7a5"
-)
-
 ##################################################
 
 test_that("Incorrect species in fetch_reactome", {
@@ -42,65 +34,95 @@ test_that("Incorrect species in fetch_reactome", {
   expect_error(fetch_reactome("Homo sapiens", "blah"))
 })
 
+test_that("Expected behaviour from a non-responsive server", {
+  httr2::with_mocked_responses(
+    mock = mocked_500,
+    code = {
+      test_unresponsive_server(fetch_reactome_species)
+      test_unresponsive_server(fetch_reactome_pathways, tax_id = tax_id)
+      test_unresponsive_server(fetch_reactome_api_genes, pathways = "R-SCE-68952")
+      test_unresponsive_server(fetch_reactome, species = species)
+      test_unresponsive_server(fetch_reactome_ensembl_genes, spec = species, use_cache = FALSE)
+      test_unresponsive_server(fetch_reactome_gene_association, tax_id = tax_id, use_cache = FALSE)
+    })
+})
 
 test_that("Expected return from fetch_reactome_species", {
   expected_selection <- c("Homo sapiens", "Mus musculus", "Rattus norvegicus",
                           "Saccharomyces cerevisiae", "Drosophila melanogaster", "Caenorhabditis elegans")
-  spec <- fetch_reactome_species()
-  expect_is(spec, "tbl")
-  expect_true(all(expected_selection %in% spec$designation))
+  spec <- fetch_reactome_species(on_error = "warn")
+  if(!is.null(spec)) {
+    expect_is(spec, "tbl")
+    expect_true(all(expected_selection %in% spec$designation))
+  }
 })
 
 
 test_that("Correct Reactome Ensembl from yeast", {
-  re <- fetch_reactome(species, source = "ensembl", use_cache = TRUE)
-  expect_is(re, "list")
-  expect_length(re, 2)
-  expect_named(re)
-  expect_equal(names(re), c("terms", "mapping"))
+  re <- fetch_reactome(species, source = "ensembl", use_cache = TRUE, on_error = "warn")
+  if(!is.null(re)) {
+    expect_is(re, "list")
+    expect_length(re, 2)
+    expect_named(re)
+    expect_equal(names(re), c("terms", "mapping"))
 
-  # Check pathways
-  paths <- re$terms
-  expect_is(paths, "tbl")
+    # Check pathways
+    paths <- re$terms
+    expect_is(paths, "tbl")
 
-  merged <- expected_pathways |>
-    dplyr::left_join(paths, by = c("term_id", "term_name")) |>
-    tidyr::drop_na()
-  expect_equal(nrow(expected_pathways), nrow(merged))
+    merged <- expected_pathways |>
+      dplyr::left_join(paths, by = c("term_id", "term_name")) |>
+      tidyr::drop_na()
+    expect_equal(nrow(expected_pathways), nrow(merged))
 
-  # Check mapping
-  mapping <- re$mapping
-  expect_is(mapping, "tbl")
-  merged <- expected_ensembl |>
-    dplyr::left_join(mapping, by = c("term_id", "gene_id")) |>
-    tidyr::drop_na()
-  expect_equal(nrow(expected_ensembl), nrow(merged))
+    # Check mapping
+    mapping <- re$mapping
+    expect_is(mapping, "tbl")
+    merged <- expected_ensembl |>
+      dplyr::left_join(mapping, by = c("term_id", "gene_id")) |>
+      tidyr::drop_na()
+    expect_equal(nrow(expected_ensembl), nrow(merged))
+  }
 })
 
 
 test_that("Correct Reactome gene association from yeast", {
-  re <- fetch_reactome(species, source = "gene_association", use_cache = TRUE)
-  expect_is(re, "list")
-  expect_length(re, 2)
-  expect_named(re)
-  expect_equal(names(re), c("terms", "mapping"))
+  re <- fetch_reactome(species, source = "gene_association", use_cache = TRUE, on_error = "warn")
+  if(!is.null(re)) {
+    expect_is(re, "list")
+    expect_length(re, 2)
+    expect_named(re)
+    expect_equal(names(re), c("terms", "mapping"))
 
-  # Check mapping
-  mapping <- re$mapping
-  expect_is(mapping, "tbl")
-  merged <- expected_gene_association |>
-    dplyr::left_join(mapping, by = c("term_id", "gene_symbol")) |>
-    tidyr::drop_na()
-  expect_equal(nrow(expected_gene_association), nrow(merged))
+    # Check mapping
+    mapping <- re$mapping
+    expect_is(mapping, "tbl")
+    merged <- expected_gene_association |>
+      dplyr::left_join(mapping, by = c("term_id", "gene_symbol")) |>
+      tidyr::drop_na()
+    expect_equal(nrow(expected_gene_association), nrow(merged))
+  }
 })
 
+# API mapping is slow, so we use much smaller organism for tests
+
+small_species <- "Mycobacterium tuberculosis"
+expected_api <- tibble::tribble(
+  ~term_id, ~gene_symbol,
+  "R-MTU-964903", "aroA",
+  "R-MTU-870392", "cysU",
+  "R-MTU-870392", "sir",
+  "R-MTU-879299", "mca"
+)
 
 test_that("Correct Reactome API from yeast", {
-  # Doing this on all pathways takes forever
-  mapping <- fetch_reactome_api_genes(expected_api$term_id)
-  expect_is(mapping, "tbl")
-  merged <- expected_api |>
-    dplyr::left_join(mapping, by = c("term_id", "gene_symbol")) |>
-    tidyr::drop_na()
-  expect_equal(nrow(expected_api), nrow(merged))
+  re <- fetch_reactome(species = small_species, source = "api")
+  mapping <- re$mapping
+  if(!is.null(mapping)) {
+    expect_is(mapping, "tbl")
+    merged <- expected_api |>
+      dplyr::left_join(mapping, by = c("term_id", "gene_symbol")) |>
+      tidyr::drop_na()
+    expect_equal(nrow(expected_api), nrow(merged))
+  }
 })

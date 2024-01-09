@@ -1,45 +1,56 @@
-#' REST API query for WikiPathways
+#' WikiPathways server base URL
 #'
-#' @param query Query, e.g. `listPathways`
-#' @param parameters Parameters, e.g. `organism=Homo sapiens`
-#'
-#' @return JSON with response
+#' @return A string with URL. This can be changed by options(WIKI_BASE_URL = "different/url").
 #' @noRd
-get_wiki_query <- function(query, parameters = NULL) {
-  pars <- paste(c(parameters, "format=json"), collapse = "&")
-  qry <- stringr::str_glue("https://webservice.wikipathways.org/{query}?{pars}") |>
-    stringr::str_replace_all("\\s", "%20")
-  assert_url_path(qry)
-  resp <- httr::GET(url = qry)
-  jsonlite::fromJSON(rawToChar(resp$content))
+get_wiki_url <- function() {
+  getOption("WIKI_BASE_URL", "https://webservice.wikipathways.org")
 }
 
-
 #' List of available WikiPathways species
+#'
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A character vector with species names used by WikiPathways.
 #' @export
 #' @examples
-#' spec <- fetch_wiki_species()
-fetch_wiki_species <- function() {
-  js <- get_wiki_query("listOrganisms")
-  tibble::tibble(designation = js$organisms)
+#' spec <- fetch_wiki_species(on_error = "warn")
+fetch_wiki_species <- function(on_error = c("stop", "warn")) {
+  on_error <- match.arg(on_error)
+
+  qry <- api_query(get_wiki_url(), "listOrganisms", list(format = "json"))
+  if(qry$is_error)
+    return(catch_error("WikiPathways", qry$response, on_error))
+
+  js <- httr2::resp_body_json(qry$response)
+  tibble::tibble(designation = unlist(js))
 }
 
 #' Download pathway data from WikiPathways
 #'
 #' @param species Species name recognised by WikiPathways (see \code{fetch_wiki_species()})
+#' @param on_error A string selecting how to react to server errors. If "stop",
+#'   an R error will be produced, if "warn", only a warning will be printed and
+#'   the function will return NULL.
 #'
 #' @return A tibble with columns \code{gene_id} and \code{term_id}
 #' @noRd
-fetch_wiki_pathways <- function(species) {
+fetch_wiki_pathways <- function(species, on_error = "stop") {
   id <- name <- NULL
 
-  js <- get_wiki_query("listPathways", stringr::str_glue("organism={species}"))
-  if(js[1] == "error")
+  qry <- api_query(get_wiki_url(), "listPathways", list(format = "json", organism = species))
+  if(qry$is_error)
+    return(catch_error("WikiPathways", qry$response, on_error))
+
+  js <- httr2::resp_body_json(qry$response)
+  if(is(js[[1]], "character") && js[[1]] == "error")
     stop(stringr::str_glue("Cannot retrieve pathways from WikiPathways for species {species}."))
+
   js$pathways |>
-    tibble::as_tibble() |>
+    purrr::map(tibble::as_tibble) |>
+    purrr::list_rbind() |>
     dplyr::select(term_id = id, term_name = name)
 }
 
@@ -79,19 +90,34 @@ parse_wiki_gpml <- function(gpml, keys = c("TextLabel", "Type", "Database", "ID"
 #' @param pathways A character vector with pathway names.
 #' @param databases Names of databases to use
 #' @param types Names of types to use
+#' @param on_error A string selecting how to react to server errors. If "stop",
+#'   an R error will be produced, if "warn", only a warning will be printed and
+#'   the function will return NULL.
 #'
 #' @return A tibble with \code{term_id} and \code{gene_symbol}
 #' @noRd
-fetch_wiki_pathway_genes_api <- function(pathways, databases = NULL, types = NULL) {
+fetch_wiki_pathway_genes_api <- function(pathways, databases = NULL, types = NULL, on_error = "stop") {
   term_id <- TextLabel <-ID <- Type <- Database <- database <- type <- NULL
 
+  raise_error <- FALSE
   pb <- progress::progress_bar$new(total = length(pathways))
-  res <- purrr::map_dfr(pathways, function(pathway) {
+  res <- purrr::map(pathways, function(pathway) {
     pb$tick()
-    js <- get_wiki_query("getPathway", stringr::str_glue("pwId={pathway}"))
+    qry <- api_query(get_wiki_url(), "getPathway", list(format = "json", pwId = pathway))
+    if(qry$is_error) {
+      catch_error("WikiPathways", qry$response, on_error)
+      raise_error <<- TRUE
+      return()
+    }
+    js <- httr2::resp_body_json(qry$response)
     parse_wiki_gpml(js$pathway$gpml) |>
       tibble::add_column(term_id = pathway)
   }) |>
+    purrr::list_rbind()
+  if(raise_error)
+    return(NULL)
+
+  res <- res |>
     dplyr::select(term_id, text_label = TextLabel, id = ID, type = Type, database = Database) |>
     dplyr::distinct()
   if(!is.null(databases)) {
@@ -131,20 +157,29 @@ fetch_wiki_pathway_genes_api <- function(pathways, databases = NULL, types = NUL
 #'   data. See details. Full result will be returned if NULL.
 #' @param types A character vector with types of entities to pre-filter mapping
 #'   data. See details. Full result will be returned if NULL.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A list with \code{terms} and \code{mapping} tibbles.
 #' @export
 #' @importFrom assertthat assert_that
 #' @examples
 #' wiki_data <- fetch_wiki("Bacillus subtilis")
-fetch_wiki <- function(species,
-  databases = c("Ensembl", "Entrez Gene", "HGNC", "HGNC Accession number", "Uniprot-TrEMBL"),
-  types = c("GeneProduct", "Protein", "Rna", "RNA")
-                       ) {
+fetch_wiki <- function(
+    species,
+    databases = c("Ensembl", "Entrez Gene", "HGNC", "HGNC Accession number", "Uniprot-TrEMBL"),
+    types = c("GeneProduct", "Protein", "Rna", "RNA"),
+    on_error = c("stop", "warn")
+  ) {
   assert_that(!missing(species), msg = "Argument 'species' is missing.")
-  assert_species(species, "fetch_wiki_species")
+  assert_species(species, "fetch_wiki_species", on_error)
+  on_error <- match.arg(on_error)
 
-  terms <- fetch_wiki_pathways(species)
+  terms <- fetch_wiki_pathways(species, on_error)
+  if(is.null(terms))
+    return(NULL)
   mapping <- fetch_wiki_pathway_genes_api(terms$term_id, databases, types)
   list(
     terms = terms,

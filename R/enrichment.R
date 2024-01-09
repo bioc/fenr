@@ -185,6 +185,12 @@ functional_enrichment <- function(feat_all, feat_sel, term_data, feat2name = NUL
   N_with <- n_with_sel <- n_expect <- enrichment <- odds_ratio <- NULL
   desc <- p_value <- p_adjust <- NULL
 
+  # Check for character vectors
+  assert_that(is.character(feat_all))
+  assert_that(is.character(feat_sel))
+  assert_that(length(feat_all) > 1)
+  assert_that(length(feat_sel) > 1)
+
   # Check term_data class
   assert_that(is(term_data, "fenr_terms"))
 
@@ -240,10 +246,9 @@ functional_enrichment <- function(feat_all, feat_sel, term_data, feat2name = NUL
     # Hypergeometric function much faster than fisher.test
     p <- 1 - stats::phyper(n_with_sel - 1, N_with, N_without, N_sel)
 
-    # Convert feature IDs to feature names; as.character is here in case feature
-    # IDs are integer.
+    # Convert feature IDs to feature names;
     if (!is.null(feat2name))
-      tfeats_sel <- feat2name[as.character(tfeats_sel)] |> unname()
+      tfeats_sel <- feat2name[tfeats_sel] |> unname()
 
     term_name <- term_data$term2name[[term_id]]
     # returns NAs if no term found
@@ -263,6 +268,7 @@ functional_enrichment <- function(feat_all, feat_sel, term_data, feat2name = NUL
       p_value = p
     )
   })
+
   # Drawback - if all selections below minimum, res is tibble 0 x 0, need to
   # catch it
   if (nrow(res) == 0) {

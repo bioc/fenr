@@ -69,13 +69,25 @@ cache_path <- function(bfc, rname, fpath) {
 #' @noRd
 cached_url_path <- function(rname, fpath, use_cache) {
   if(use_cache) {
-    assert_url_path(fpath)
     cache <- cache_location()
     bfc <- BiocFileCache::BiocFileCache(cache, ask = FALSE)
     lpath <- cache_path(bfc, rname, fpath)
   } else {
     lpath <- fpath
   }
-
   return(lpath)
+}
+
+
+#' Remove all cache
+#'
+#' This function will remove all cached data used by `fenr`. The user will be
+#' prompted for confirmation. Use with caution!
+#'
+#' @return TRUE if successfully removed.
+#' @noRd
+remove_cache <- function() {
+  cache <- cache_location()
+  bfc <- BiocFileCache::BiocFileCache(cache, ask = FALSE)
+  BiocFileCache::removebfc(bfc, ask = TRUE)
 }

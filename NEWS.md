@@ -115,3 +115,12 @@
 
  - Minor changes to prepare for Bioconductor release
  - Reverting temporarily to *readr* version 1 to circumvent a *vroom* 1.6.4 bug
+
+## Version 1.1.0
+
+ - First update after Bioconductor release
+ - Implemented changes to prevent the package from build/check fail, if one of the remote servers is not responding
+ - Moved from `httr` to `httr2` 
+ - Tests and examples now generate warnings in case of server failure
+ - Added tests for behaviour in case of a non-responsive server
+ - Extended test coverage to 100%, except for the interactive example

@@ -13,21 +13,34 @@ test_that("Incorrect batch size in fetch_kegg", {
 
 
 test_that("Parsing KEGG flat file", {
-  # Temporary patch to circumvent vroom 1.6.4 bug
-  readr::local_edition(1)
-
   flat <- readr::read_file("../test_data/kegg_test.txt")
-  expected <- readr::read_rds("../test_data/kegg_parseing_result.rds")
+  expected <- readr::read_rds("../test_data/kegg_parsing_result.rds")
   parsed <- parse_kegg_genes(flat)
   expect_equal(parsed, expected)
 })
 
 
+test_that("Expected behaviour from a non-responsive server", {
+  species <- "mge"
+  pathway <- "mge00010"
+  httr2::with_mocked_responses(
+    mock = mocked_500,
+    code = {
+      test_unresponsive_server(fetch_kegg_species)
+      test_unresponsive_server(fetch_kegg_pathways, species = species)
+      test_unresponsive_server(fetch_kegg_mapping, pathways = pathway, batch_size = 1)
+      test_unresponsive_server(fetch_kegg, species = species)
+    })
+})
+
+
 test_that("Expected return from fetch_kegg_species", {
   expected_selection <- c("hsa", "mmu", "rno", "sce", "dme", "cel")
-  spec <- fetch_kegg_species()
-  expect_is(spec, "tbl")
-  expect_true(all(expected_selection %in% spec$designation))
+  spec <- fetch_kegg_species(on_error = "warn")
+  if(!is.null(spec)) {
+    expect_is(spec, "tbl")
+    expect_true(all(expected_selection %in% spec$designation))
+  }
 })
 
 
@@ -50,8 +63,10 @@ test_that("Correct response from fetch_kegg", {
     "mge03030", "polC"
   )
 
-  re <- fetch_kegg(species)
-  test_fetched_structure(re)
-  test_terms(re$terms, expected_terms)
-  test_mapping(re$mapping, expected_mapping, "gene_symbol")
+  re <- fetch_kegg(species, on_error = "warn")
+  if(!is.null(re)) {
+    test_fetched_structure(re)
+    test_terms(re$terms, expected_terms)
+    test_mapping(re$mapping, expected_mapping, "gene_symbol")
+  }
 })

@@ -4,7 +4,7 @@
 \alias{fetch_kegg}
 \title{Get functional term data from KEGG}
 \usage{
-fetch_kegg(species, batch_size = 10)
+fetch_kegg(species, batch_size = 10, on_error = c("stop", "warn"))
 }
 \arguments{
 \item{species}{KEGG species code, for example "hsa" for human. The
@@ -12,6 +12,11 @@ full list of available KEGG species can be found by using \code{fetch_kegg_speci
 
 \item{batch_size}{Number of pathways sent to KEGG database in one query. The
 maximum allowed is 10.}
+
+\item{on_error}{A character vector specifying the error handling method. It
+can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+will halt the function execution and throw an error, while `"warn"` will
+issue a warning and return `NULL`.}
 }
 \value{
 A list with \code{terms} and \code{mapping} tibbles.

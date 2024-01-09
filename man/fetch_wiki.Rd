@@ -8,7 +8,8 @@ fetch_wiki(
   species,
   databases = c("Ensembl", "Entrez Gene", "HGNC", "HGNC Accession number",
     "Uniprot-TrEMBL"),
-  types = c("GeneProduct", "Protein", "Rna", "RNA")
+  types = c("GeneProduct", "Protein", "Rna", "RNA"),
+  on_error = c("stop", "warn")
 )
 }
 \arguments{
@@ -21,6 +22,11 @@ data. See details. Full result will be returned if NULL.}
 
 \item{types}{A character vector with types of entities to pre-filter mapping
 data. See details. Full result will be returned if NULL.}
+
+\item{on_error}{A character vector specifying the error handling method. It
+can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+will halt the function execution and throw an error, while `"warn"` will
+issue a warning and return `NULL`.}
 }
 \value{
 A list with \code{terms} and \code{mapping} tibbles.

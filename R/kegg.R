@@ -1,57 +1,54 @@
-KEGG_BASE_URL <- "https://rest.kegg.jp"
-
-#' A helper function to retrieve API data from KEGG
+#' KEGG server base URL
 #'
-#' @param path Path in the query
-#'
-#' @return A string with result
+#' @return A string with URL. This can be changed by options(KEGG_BASE_URL =
+#'   "different/url").
 #' @noRd
-fetch_kegg_data <- function(path) {
-  url <- file.path(KEGG_BASE_URL, path)
-  assert_url_path(url)
-  res <- httr::GET(url)
-  rawToChar(res$content)
+get_kegg_url <- function() {
+  getOption("KEGG_BASE_URL", "https://rest.kegg.jp")
 }
 
-
 #' Find all species available from KEGG
+#'
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A tibble, in which column \code{designation} contains species
 #'   designations used in function \code{fetch_kegg}.
 #' @export
 #' @examples
 #' spe <- fetch_kegg_species()
-fetch_kegg_species <- function() {
+fetch_kegg_species <- function(on_error = c("stop", "warn")) {
+  qry <- api_query(get_kegg_url(), "list/organism")
+  if(qry$is_error)
+    return(catch_error("KEGG", qry$response, on_error))
 
-  # Temporary patch to circumvent vroom 1.6.4 bug
-  readr::local_edition(1)
-
-  s <- fetch_kegg_data("list/organism")
-  readr::read_tsv(I(s), col_names = c("id", "designation", "species", "phylogeny"), show_col_types = FALSE)
+  st <- httr2::resp_body_string(qry$response)
+  readr::read_tsv(I(st), col_names = c("id", "designation", "species", "phylogeny"), show_col_types = FALSE)
 }
 
 
 #' Download pathway data from KEGG
 #'
 #' @param species A valid species designation used by KEGG.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A tibble with columns \code{gene_id} and \code{term_id}.
 #' @noRd
-fetch_kegg_pathways <- function(species) {
+fetch_kegg_pathways <- function(species, on_error) {
   # Binding variables from non-standard evaluation locally
   term_id <- NULL
 
-  # Temporary patch to circumvent vroom 1.6.4 bug
-  readr::local_edition(1)
+  qry <- api_query(get_kegg_url(), stringr::str_glue("list/pathway/{species}"))
+  if(qry$is_error)
+    return(catch_error("KEGG", qry$response, on_error))
 
-  query <- stringr::str_glue("list/pathway/{species}")
-  url <- file.path(KEGG_BASE_URL, query)
-  if(!assert_url_path(url, stop_if_error = FALSE))
-    stop(stringr::str_glue("Cannot get pathways for species {species}. Check that your
-                           species designation is correct using fetch_kegg_species()."))
-
-  s <- fetch_kegg_data(query)
-  readr::read_tsv(I(s), col_names = c("term_id", "term_name"), show_col_types = FALSE) |>
+  st <- httr2::resp_body_string(qry$response)
+  readr::read_tsv(I(st), col_names = c("term_id", "term_name"), show_col_types = FALSE) |>
     dplyr::mutate(term_id = stringr::str_remove(term_id, "path:"))
 }
 
@@ -68,7 +65,7 @@ parse_kegg_genes <- function(s) {
 
   entries <- stringr::str_split(s, "///") |> unlist()
   entries <- entries[-length(entries)] # there is /// at the end
-  purrr::map_dfr(entries, function(entry) {
+  purrr::map(entries, function(entry) {
     d <- stringr::str_split(entry, "\n") |>
       unlist()
     n <- length(d)
@@ -109,7 +106,8 @@ parse_kegg_genes <- function(s) {
         gene_id
       )) |>
       tibble::add_column(term_id = pathway)
-  })
+  }) |>
+    purrr::list_rbind()
 }
 
 
@@ -118,22 +116,41 @@ parse_kegg_genes <- function(s) {
 #' @param pathways A character vector with KEGG pathways
 #' @param batch_size Number of pathways sent to KEGG database in one query. The
 #'   maximum allowed is 10.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #' @importFrom assertthat assert_that
 #' @return A tibble with columns \code{gene_id} and \code{term_id}
 #' @noRd
-fetch_kegg_mapping <- function(pathways, batch_size) {
+fetch_kegg_mapping <- function(pathways, batch_size, on_error = "stop") {
   assert_that(is.character(pathways))
   batches <- split(pathways, ceiling(seq_along(pathways) / batch_size))
 
+  raise_error <- FALSE
   pb <- progress::progress_bar$new(total = length(batches))
-  purrr::map_dfr(batches, function(batch) {
+  tb <- purrr::map(batches, function(batch) {
     dbentries <- paste(batch, collapse = "+")
 
     # this returns a flat file
-    s <- fetch_kegg_data(stringr::str_glue("get/{dbentries}"))
+    qry <- api_query(get_kegg_url(), stringr::str_glue("get/{dbentries}"))
+    if(qry$is_error) {
+      catch_error("KEGG", qry$response, on_error)
+      raise_error <<- TRUE
+      return(NULL)
+    }
+
     pb$tick()
-    parse_kegg_genes(s)
-  })
+    st <- httr2::resp_body_string(qry$response)
+    parse_kegg_genes(st)
+  }) |>
+    purrr::list_rbind()
+
+  if(raise_error) {
+    return(NULL)
+  } else {
+    return(tb)
+  }
 }
 
 
@@ -148,19 +165,25 @@ fetch_kegg_mapping <- function(pathways, batch_size) {
 #'   full list of available KEGG species can be found by using \code{fetch_kegg_species}.
 #' @param batch_size Number of pathways sent to KEGG database in one query. The
 #'   maximum allowed is 10.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A list with \code{terms} and \code{mapping} tibbles.
 #' @importFrom assertthat assert_that is.count
 #' @export
 #' @examples
 #' kegg_data <- fetch_kegg("mge")
-fetch_kegg <- function(species, batch_size = 10) {
+fetch_kegg <- function(species, batch_size = 10, on_error = c("stop", "warn")) {
   assert_that(!missing(species), msg = "Argument 'species' is missing.")
   assert_that(is.count(batch_size))
   assert_that(batch_size <= 10, msg = "batch_size needs to be between 1 and 10")
 
-  terms <- fetch_kegg_pathways(species)
-  mapping <- fetch_kegg_mapping(terms$term_id, batch_size)
+  terms <- fetch_kegg_pathways(species, on_error)
+  if(is.null(terms))
+    return(NULL)
+  mapping <- fetch_kegg_mapping(terms$term_id, batch_size, on_error)
 
   list(
     terms = terms,

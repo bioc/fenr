@@ -4,7 +4,13 @@
 \alias{fetch_wiki_species}
 \title{List of available WikiPathways species}
 \usage{
-fetch_wiki_species()
+fetch_wiki_species(on_error = c("stop", "warn"))
+}
+\arguments{
+\item{on_error}{A character vector specifying the error handling method. It
+can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+will halt the function execution and throw an error, while `"warn"` will
+issue a warning and return `NULL`.}
 }
 \value{
 A character vector with species names used by WikiPathways.
@@ -13,5 +19,5 @@ A character vector with species names used by WikiPathways.
 List of available WikiPathways species
 }
 \examples{
-spec <- fetch_wiki_species()
+spec <- fetch_wiki_species(on_error = "warn")
 }

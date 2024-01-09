@@ -3,15 +3,19 @@ library(testthat)
 # Set 100 features
 N <- 100
 features_all <- sprintf("gene_%03d", seq_len(N))
+symbols_all <- sprintf("symbol_%03d", seq_len(N))
+feat2name <- purrr::set_names(symbols_all, features_all)
 
 # Three terms with 50, 10 and 3 features
 term_ids <- c("term_1", "term_2", "term_3")
 term_names <- c("name_1", "name_2", "name_3")
 term_sizes <- c(50, 10, 3)
 
-# Prepare data for enrichment
-term2name <- term_names |>
-  purrr::set_names(term_ids)
+# Prepare data for enrichment. The last term's name is intentionally missing.
+term2name <- new.env(hash = TRUE)
+for (i in seq_len(length(term_ids) - 1)) {
+  term2name[[term_ids[i]]] <- term_names[i]
+}
 
 # random selection of features for terms
 set.seed(666)
@@ -21,7 +25,6 @@ mapping <- purrr::map2_dfr(term_ids, term_sizes, function(tid, n) {
     feature_id = sample(features_all, n)
   )
 })
-
 
 # Feature to terms hash
 feature2term <- new.env(hash = TRUE)
@@ -86,17 +89,86 @@ term_stats <- function(tid, N_sel, n_with_sel) {
   )
 }
 
+# Test selection of 3 genes
+set.seed(42)
+test_sel <- mapping |>
+  dplyr::group_by(term_id) |>
+  dplyr::sample_n(3) |>
+  dplyr::pull(feature_id)
+
+
+#######################################################
+
+test_that("Incorrect term_data class", {
+  td <- term_data
+  class(td) <- "wobble"
+
+  expect_error(
+    functional_enrichment(features_all, features_all[seq_len(10)], td)
+  )
+})
+
+
+test_that("Features must be character vectors with length > 1", {
+  expect_error(functional_enrichment(c(1, 2, 3, 4), c(1, 2), term_data))
+  expect_error(functional_enrichment(features_all, features_all[1], term_data))
+  expect_error(functional_enrichment(features_all, character(0), term_data))
+  expect_error(functional_enrichment(features_all[1], features_all[1], term_data))
+  expect_error(functional_enrichment(character(0), character(0), term_data))
+})
+
 test_that("Correct output", {
-  set.seed(42)
-  sel <- mapping |>
-    dplyr::group_by(term_id) |>
-    dplyr::sample_n(3) |>
-    dplyr::pull(feature_id)
-  enr <- functional_enrichment(features_all, sel, term_data)
+  enr <- functional_enrichment(features_all, test_sel, term_data)
 
   expect_true(is.data.frame(enr))
   expect_equal(nrow(enr), length(term_ids))
   expect_equal(ncol(enr), 10)
+})
+
+test_that("Gene names translated", {
+  enr <- functional_enrichment(features_all, test_sel, term_data, feat2name)
+  symbols <- enr |>
+    tidyr::separate_longer_delim(ids, delim = ", ") |>
+    dplyr::pull(ids) |>
+    unique()
+  expect_contains(symbols_all, symbols)
+})
+
+
+test_that("Missing term name replaced with NA", {
+  enr <- functional_enrichment(features_all, test_sel, term_data)
+  misname <- enr |>
+    dplyr::filter(term_id == "term_3") |>
+    dplyr::pull(term_name)
+  expect_true(is.na(misname))
+})
+
+
+test_that("n_with_sel < 2 should return NULL", {
+  set.seed(42)
+  # genes for term 1
+  feat_1 <- mapping |>
+    dplyr::filter(term_id == term_ids[1]) |>
+    dplyr::pull(feature_id)
+  # genes for term 2
+  feat_2 <- mapping |>
+    dplyr::filter(term_id == term_ids[2]) |>
+    dplyr::pull(feature_id)
+  # find genes exclusive to selections
+  sel_1 <- setdiff(feat_1, feat_2)
+  sel_2 <- setdiff(feat_2, feat_1)
+
+  # One gene from feat_1, 3 genes from feat_2
+  sel <- c(sample(sel_1, 1), sample(sel_2, 3))
+  enr <- functional_enrichment(features_all, sel, term_data)
+  # Term 1 should not appear in the output
+  expect_false(term_ids[1] %in% enr$term_id)
+
+  # One gene from feat_1, 1 gene from feat_2
+  sel <- c(sample(sel_1, 1), sample(sel_2, 1))
+  enr <- functional_enrichment(features_all, sel, term_data)
+  # All searches have n_with_sel < 2, expect NULL
+  expect_null(enr)
 })
 
 
@@ -161,11 +233,3 @@ test_that("No match between selection and all features", {
 })
 
 
-test_that("Incorrect term_data class", {
-  td <- term_data
-  class(td) <- "wobble"
-
-  expect_error(
-    functional_enrichment(features_all, features_all[seq_len(10)], td)
-  )
-})

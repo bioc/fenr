@@ -1,3 +1,27 @@
+#' URL of GO gene association file
+#'
+#' @return A string with URL.
+#' @noRd
+get_go_obo_file <- function() {
+  getOption("GO_OBO_FILE", "http://purl.obolibrary.org/obo/go.obo")
+}
+
+#' URL of GO species webpage
+#'
+#' @return A string with URL.
+#' @noRd
+get_go_species_url <- function() {
+  getOption("GO_SPECIES_URL", "http://current.geneontology.org/products/pages/downloads.html")
+}
+
+#' URL of GO annotation server
+#'
+#' @return A string with URL.
+#' @noRd
+get_go_annotation_url <- function() {
+  getOption("GO_ANNOTATION_URL", "http://current.geneontology.org/annotations")
+}
+
 #' Parse OBO file and return a tibble with key and value
 #'
 #' @param obo Obo file content as a character vector
@@ -35,25 +59,15 @@ parse_obo_file <- function(obo) {
     tibble::as_tibble()
 }
 
-
-#' Download GO term descriptions
+#' Extract GO term IDs and names from parsed OBO data
 #'
-#' @param obo_file A URL or local file containing GO ontology, in OBO format.
-#' @param use_cache Logical, if TRUE, the remote file will be cached locally.
+#' @param parsed OBO data parsed by \code{parse_obo_file}
 #'
-#' @return A tibble with term_id and term_name.
+#' @return A tibble with term_id and term_name
 #' @noRd
-fetch_go_terms <- function(obo_file = "http://purl.obolibrary.org/obo/go.obo",
-                           use_cache) {
+extract_obo_terms <- function(parsed) {
   # Binding variables from non-standard evaluation locally
   key <- term_id <- value <- term_name <- NULL
-
-  # Temporary patch to circumvent vroom 1.6.4 bug
-  readr::local_edition(1)
-
-  lpath <- cached_url_path("obo", obo_file, use_cache)
-  parsed <- readr::read_lines(lpath) |>
-    parse_obo_file()
 
   terms <- parsed |>
     dplyr::filter(key == "name") |>
@@ -71,6 +85,28 @@ fetch_go_terms <- function(obo_file = "http://purl.obolibrary.org/obo/go.obo",
 }
 
 
+#' Download GO term descriptions
+#'
+#' @param use_cache Logical, if TRUE, the remote file will be cached locally.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `FALSE`.
+#'
+#' @return A tibble with term_id and term_name.
+#' @noRd
+fetch_go_terms <- function(use_cache, on_error = "stop") {
+  obo_file <- get_go_obo_file()
+  if(!assert_url_path(obo_file, on_error))
+    return(NULL)
+
+  lpath <- cached_url_path("obo", obo_file, use_cache)
+  readr::read_lines(lpath) |>
+    parse_obo_file() |>
+    extract_obo_terms()
+}
+
+
 
 #' Find all species available from geneontology.org
 #'
@@ -82,23 +118,30 @@ fetch_go_terms <- function(obo_file = "http://purl.obolibrary.org/obo/go.obo",
 #' without extension (e.g. for a file \file{goa_chicken.gaf} the designation is
 #' \file{goa_chicken}).
 #'
-#' @param url URL of the Gene Ontology web page with downloads.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A tibble with columns \code{species} and \code{designation}.
 #' @export
 #' @examples
 #' go_species <- fetch_go_species()
-fetch_go_species <- function(
-    url = "http://current.geneontology.org/products/pages/downloads.html") {
+fetch_go_species <- function(on_error = c("stop", "warn")) {
+  on_error <- match.arg(on_error)
   # Binding variables from non-standard evaluation locally
   species <- designation <- `Species/Database` <- File <- NULL
 
-  assert_url_path(url)
-  u <- httr::GET(url) |>
-    httr::content("text", encoding = "UTF-8") |>
-    XML::readHTMLTable(as.data.frame = TRUE)
+  url <- get_go_species_url()
+  qry <- api_query(url, "")
+  if(qry$is_error)
+    return(catch_error("GO species website", qry$response, on_error))
+
+  u <- qry$response |>
+    httr2::resp_body_html() |>
+    rvest::html_table()
+
   u[[1]] |>
-    tibble::as_tibble() |>
     dplyr::mutate(
       species = `Species/Database` |>
         stringr::str_replace_all("\\n", "-") |>
@@ -117,22 +160,24 @@ fetch_go_species <- function(
 #'   \url{http://current.geneontology.org/annotations}. Examples are
 #'   \file{goa_human} for human, \file{mgi} for mouse or \file{sgd} for yeast.
 #' @param use_cache Logical, if TRUE, the remote file will be cached locally.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A tibble with columns \code{gene_symbol}, \code{uniprot_id} and \code{term_id}.
 #' @noRd
-fetch_go_genes_go <- function(species, use_cache) {
+fetch_go_genes_go <- function(species, use_cache, on_error = "stop") {
   # Binding variables from non-standard evaluation locally
   gene_synonym <- db_object_synonym <- symbol <- NULL
   db_id <- go_term <- NULL
 
-  # Temporary patch to circumvent vroom 1.6.4 bug
-  readr::local_edition(1)
+  url <- get_go_annotation_url()
+  gaf_file <- stringr::str_glue("{url}/{species}.gaf.gz")
+  if(!assert_url_path(gaf_file, on_error))
+    return(NULL)
 
-  gaf_file <- stringr::str_glue("http://current.geneontology.org/annotations/{species}.gaf.gz")
-  assert_url_path(gaf_file)
-
-  lpath <- cached_url_path(stringr::str_glue("gaf_{species}"), gaf_file, use_cache)
-
+  lpath <- cached_url_path(stringr::str_glue("go_gaf_{species}"), gaf_file, use_cache)
   readr::read_tsv(lpath, comment = "!", quote = "", col_names = GAF_COLUMNS,
                   col_types = GAF_TYPES) |>
     dplyr::mutate(gene_synonym = stringr::str_remove(db_object_synonym, "\\|.*$")) |>
@@ -159,15 +204,22 @@ fetch_go_genes_go <- function(species, use_cache) {
 #'   species can be obtained using \code{fetch_go_species} - column
 #'   \code{designation}.
 #' @param use_cache Logical, if TRUE, the remote file will be cached locally.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A list with \code{terms} and \code{mapping} tibbles.
 #' @importFrom assertthat assert_that
 #' @noRd
-fetch_go_from_go <- function(species, use_cache) {
+fetch_go_from_go <- function(species, use_cache, on_error = "stop") {
   assert_that(!missing(species), msg = "Argument 'species' is missing.")
-  assert_species(species, "fetch_go_species")
+  assert_species(species, "fetch_go_species", on_error)
 
-  mapping <- fetch_go_genes_go(species, use_cache)
+  mapping <- fetch_go_genes_go(species = species, use_cache = use_cache, on_error = on_error)
+  if(is.null(mapping))
+    return(NULL)
+
   terms <- fetch_go_terms(use_cache = use_cache)
 
   list(
@@ -260,6 +312,10 @@ fetch_go_from_bm <- function(mart, use_cache = TRUE) {
 #'   BioMart database, created with, e.g., \code{useEnsembl}. This argument is
 #'   used when fetching data from the Ensembl database.
 #' @param use_cache Logical, if TRUE, the remote data will be cached locally.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
 #' @return A list with \code{terms} and \code{mapping} tibbles.
 #' @export
@@ -270,7 +326,9 @@ fetch_go_from_bm <- function(mart, use_cache = TRUE) {
 #' go_data_ensembl <- fetch_go(mart = mart)
 #' # Fetch GO data from Gene Ontology
 #' go_data_go <- fetch_go(species = "sgd")
-fetch_go <- function(species = NULL, mart = NULL, use_cache = TRUE) {
+fetch_go <- function(species = NULL, mart = NULL, use_cache = TRUE, on_error = c("stop", "warn")) {
+  on_error <- match.arg(on_error)
+
   assert_that(!(is.null(species) & is.null(mart)),
               msg = "One of the arguments 'species' or 'mart' must be supplied.")
   assert_that(is.null(species) | is.null(mart),

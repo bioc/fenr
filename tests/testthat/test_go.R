@@ -1,10 +1,3 @@
-test_that("Incorrect URL in fetch_go_species", {
-  expect_error(
-    fetch_go_species("http://current.geneontology.org/products/pages/this_does_not_exist.html")
-  )
-})
-
-
 test_that("Incorrect aruments in fetch_go", {
   expect_error(fetch_go())
   expect_error(fetch_go(species = "sgd", mart = "mart"))
@@ -28,18 +21,35 @@ test_that("Processing OBO file", {
   expected_names <- c("mitochondrion inheritance", "mitotic spindle elongation",
                       "obsolete nuclear interphase chromosome", "mitotic spindle elongation")
 
-  trms <- fetch_go_terms("../test_data/go_obo_test.txt", use_cache = FALSE)
+  trms <- readr::read_lines("../test_data/go_obo_test.txt") |>
+    parse_obo_file() |>
+    extract_obo_terms()
+
   expect_s3_class(trms, "tbl")
   expect_equal(trms$term_id, expected_ids)
   expect_equal(trms$term_name, expected_names)
 })
 
 
+test_that("Expected behaviour from a non-responsive server", {
+  species <- "sgd"
+  httr2::with_mocked_responses(
+    mock = mocked_500,
+    code = {
+      test_unresponsive_server(fetch_go_terms, use_cache = FALSE)
+      test_unresponsive_server(fetch_go_species)
+      test_unresponsive_server(fetch_go_from_go, species = species, use_cache = FALSE)
+    })
+})
+
+
 test_that("Expected return from fetch_go_species", {
   expected_selection <- c("goa_human", "mgi", "rgd", "sgd", "fb", "wb")
-  spec <- fetch_go_species()
-  expect_is(spec, "tbl")
-  expect_true(all(expected_selection %in% spec$designation))
+  spec <- fetch_go_species(on_error = "warn")
+  if(!is.null(spec)) {
+    expect_is(spec, "tbl")
+    expect_true(all(expected_selection %in% spec$designation))
+  }
 })
 
 
@@ -62,10 +72,12 @@ test_that("GO yeast from GO is correct", {
     "GO:0004365", "TDH3"
   )
 
-  re <- fetch_go(species = "sgd")
-  test_fetched_structure(re)
-  test_terms(re$terms, expected_terms)
-  test_mapping(re$mapping, expected_mapping, "gene_symbol")
+  re <- fetch_go(species = species, on_error = "warn")
+  if(!is.null(re)) {
+    test_fetched_structure(re)
+    test_terms(re$terms, expected_terms)
+    test_mapping(re$mapping, expected_mapping, "gene_symbol")
+  }
 })
 
 

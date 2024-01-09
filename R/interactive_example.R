@@ -19,7 +19,7 @@ fetch_terms_for_example <- function(de) {
 
   # load Reactome pathways
   message("Fetching Reactome data\n")
-  re <- fetch_reactome("Saccharomyces cerevisiae")
+  re <- fetch_reactome("Saccharomyces cerevisiae", on_error = "warn")
   re_data <- prepare_for_enrichment(re$terms, re$mapping, all_genes, feature_name = "gene_id")
 
   # Put all functional term data in one structure; Shiny app will access
@@ -180,8 +180,12 @@ main_plot <- function(de, input) {
 #' }
 enrichment_interactive <- function(de, term_data) {
   assert_that(is.data.frame(de))
-  assert_columns(de, c("gene_id", "gene_symbol", "logFC", "logCPM", "PValue", "FDR"))
   assert_that(is(term_data, "list"))
+
+  req_cols <- c("gene_id", "gene_symbol", "logFC", "logCPM", "PValue", "FDR")
+  if(!all(req_cols %in% colnames(de)))
+    stop(paste0("The data frame needs to contain the following columns\n", paste(req_cols, collapse = ", ")))
+
 
   ui <- function() {
     shiny::shinyUI(shiny::fluidPage(

@@ -4,7 +4,13 @@
 \alias{fetch_reactome_species}
 \title{List of available Reactome species}
 \usage{
-fetch_reactome_species()
+fetch_reactome_species(on_error = c("stop", "warn"))
+}
+\arguments{
+\item{on_error}{A character vector specifying the error handling method. It
+can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+will halt the function execution and throw an error, while `"warn"` will
+issue a warning and return `NULL`.}
 }
 \value{
 A tibble with species names used by Reactome.
