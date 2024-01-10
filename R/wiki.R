@@ -166,16 +166,16 @@ fetch_wiki_pathway_genes_api <- function(pathways, databases = NULL, types = NUL
 #' @export
 #' @importFrom assertthat assert_that
 #' @examples
-#' wiki_data <- fetch_wiki("Bacillus subtilis")
+#' wiki_data <- fetch_wiki("Bacillus subtilis", on_error = "warn")
 fetch_wiki <- function(
     species,
     databases = c("Ensembl", "Entrez Gene", "HGNC", "HGNC Accession number", "Uniprot-TrEMBL"),
     types = c("GeneProduct", "Protein", "Rna", "RNA"),
     on_error = c("stop", "warn")
   ) {
+  on_error <- match.arg(on_error)
   assert_that(!missing(species), msg = "Argument 'species' is missing.")
   assert_species(species, "fetch_wiki_species", on_error)
-  on_error <- match.arg(on_error)
 
   terms <- fetch_wiki_pathways(species, on_error)
   if(is.null(terms))

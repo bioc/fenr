@@ -25,5 +25,5 @@ without extension (e.g. for a file \file{goa_chicken.gaf} the designation is
 \file{goa_chicken}).
 }
 \examples{
-go_species <- fetch_go_species()
+go_species <- fetch_go_species(on_error = "warn")
 }

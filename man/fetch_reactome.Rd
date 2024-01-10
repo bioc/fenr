@@ -46,5 +46,5 @@ Reactome makes mapping between Ensembl ID and pathway ID available
   mappings than can be extracted using API.
 }
 \examples{
-reactome_data <- fetch_reactome("Saccharomyces cerevisiae")
+reactome_data <- fetch_reactome("Saccharomyces cerevisiae", on_error = "warn")
 }

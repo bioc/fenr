@@ -19,5 +19,5 @@ A tibble with species names used by Reactome.
 List of available Reactome species
 }
 \examples{
-re <- fetch_reactome_species()
+re <- fetch_reactome_species(on_error = "warn")
 }

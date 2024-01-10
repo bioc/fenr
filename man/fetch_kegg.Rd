@@ -28,5 +28,5 @@ from gene descriptions. For some species (e.g. yeast), gene symbols are
 returned instead of entrez IDs and not in gene description.
 }
 \examples{
-kegg_data <- fetch_kegg("mge")
+kegg_data <- fetch_kegg("mge", on_error = "warn")
 }

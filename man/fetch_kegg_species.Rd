@@ -20,5 +20,5 @@ A tibble, in which column \code{designation} contains species
 Find all species available from KEGG
 }
 \examples{
-spe <- fetch_kegg_species()
+spe <- fetch_kegg_species(on_error = "warn")
 }

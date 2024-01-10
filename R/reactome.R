@@ -31,7 +31,7 @@ get_reactome_gaf_file <- function() {
 #' @return A tibble with species names used by Reactome.
 #' @export
 #' @examples
-#' re <- fetch_reactome_species()
+#' re <- fetch_reactome_species(on_error = "warn")
 fetch_reactome_species <- function(on_error = c("stop", "warn")) {
   # Binding variables from non-standard evaluation locally
   dbId <- displayName <- taxId <- NULL
@@ -231,7 +231,7 @@ fetch_reactome_api_genes <- function(pathways, on_error) {
 #' @importFrom assertthat assert_that
 #' @export
 #' @examples
-#' reactome_data <- fetch_reactome("Saccharomyces cerevisiae")
+#' reactome_data <- fetch_reactome("Saccharomyces cerevisiae", on_error = "warn")
 fetch_reactome <- function(species, source = c("ensembl", "api", "gene_association"),
                            use_cache = TRUE, on_error = c("stop", "warn")) {
   source <- match.arg(source)

@@ -18,7 +18,7 @@ get_kegg_url <- function() {
 #'   designations used in function \code{fetch_kegg}.
 #' @export
 #' @examples
-#' spe <- fetch_kegg_species()
+#' spe <- fetch_kegg_species(on_error = "warn")
 fetch_kegg_species <- function(on_error = c("stop", "warn")) {
   qry <- api_query(get_kegg_url(), "list/organism")
   if(qry$is_error)
@@ -174,7 +174,7 @@ fetch_kegg_mapping <- function(pathways, batch_size, on_error = "stop") {
 #' @importFrom assertthat assert_that is.count
 #' @export
 #' @examples
-#' kegg_data <- fetch_kegg("mge")
+#' kegg_data <- fetch_kegg("mge", on_error = "warn")
 fetch_kegg <- function(species, batch_size = 10, on_error = c("stop", "warn")) {
   assert_that(!missing(species), msg = "Argument 'species' is missing.")
   assert_that(is.count(batch_size))

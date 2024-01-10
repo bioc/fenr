@@ -126,7 +126,7 @@ fetch_go_terms <- function(use_cache, on_error = "stop") {
 #' @return A tibble with columns \code{species} and \code{designation}.
 #' @export
 #' @examples
-#' go_species <- fetch_go_species()
+#' go_species <- fetch_go_species(on_error = "warn")
 fetch_go_species <- function(on_error = c("stop", "warn")) {
   on_error <- match.arg(on_error)
   # Binding variables from non-standard evaluation locally
@@ -323,9 +323,9 @@ fetch_go_from_bm <- function(mart, use_cache = TRUE) {
 #' @examples
 #' # Fetch GO data from Ensembl
 #' mart <- biomaRt::useEnsembl(biomart = "ensembl", dataset = "scerevisiae_gene_ensembl")
-#' go_data_ensembl <- fetch_go(mart = mart)
+#' go_data_ensembl <- fetch_go(mart = mart, on_error = "warn")
 #' # Fetch GO data from Gene Ontology
-#' go_data_go <- fetch_go(species = "sgd")
+#' go_data_go <- fetch_go(species = "sgd", on_error = "warn")
 fetch_go <- function(species = NULL, mart = NULL, use_cache = TRUE, on_error = c("stop", "warn")) {
   on_error <- match.arg(on_error)
 
