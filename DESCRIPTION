@@ -1,6 +1,6 @@
 Package: fenr
 Title: Fast functional enrichment for interactive applications
-Version: 1.0.2
+Version: 1.0.4
 Authors@R: person(
     given = "Marek",
     family = "Gierlinski",
@@ -12,9 +12,10 @@ Description: Perform fast functional enrichment on feature lists (like genes
     or proteins) using the hypergeometric distribution. Tailored for speed,
     this package is ideal for interactive platforms such as Shiny. It supports
     the retrieval of functional data from sources like GO, KEGG, Reactome,
-    and WikiPathways. By downloading and preparing data first, it allows for
-    rapid successive tests on various feature selections without the need
-    for repetitive, time-consuming preparatory steps typical of other packages. 
+    Bioplanet and WikiPathways. By downloading and preparing data first, it
+    allows for rapid successive tests on various feature selections without
+    the need for repetitive, time-consuming preparatory steps typical of other
+    packages. 
 URL: https://github.com/bartongroup/fenr
 BugReports: https://github.com/bartongroup/fenr/issues
 Depends: R (>= 4.3.0)

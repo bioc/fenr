@@ -20,6 +20,8 @@ get_kegg_url <- function() {
 #' @examples
 #' spe <- fetch_kegg_species(on_error = "warn")
 fetch_kegg_species <- function(on_error = c("stop", "warn")) {
+  on_error <- match.arg(on_error)
+
   qry <- api_query(get_kegg_url(), "list/organism")
   if(qry$is_error)
     return(catch_error("KEGG", qry$response, on_error))
@@ -176,6 +178,8 @@ fetch_kegg_mapping <- function(pathways, batch_size, on_error = "stop") {
 #' @examples
 #' kegg_data <- fetch_kegg("mge", on_error = "warn")
 fetch_kegg <- function(species, batch_size = 10, on_error = c("stop", "warn")) {
+  on_error <- match.arg(on_error)
+
   assert_that(!missing(species), msg = "Argument 'species' is missing.")
   assert_that(is.count(batch_size))
   assert_that(batch_size <= 10, msg = "batch_size needs to be between 1 and 10")

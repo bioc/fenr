@@ -33,6 +33,8 @@ get_reactome_gaf_file <- function() {
 #' @examples
 #' re <- fetch_reactome_species(on_error = "warn")
 fetch_reactome_species <- function(on_error = c("stop", "warn")) {
+  on_error <- match.arg(on_error)
+
   # Binding variables from non-standard evaluation locally
   dbId <- displayName <- taxId <- NULL
 

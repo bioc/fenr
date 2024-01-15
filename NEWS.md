@@ -129,3 +129,8 @@
 
  - Bug fixes, examples need on_error = "warn"
 
+## Version 1.1.3
+
+ - Reinstated Bioplanet access, this time with graceful fail when the website is down.
+ - Minor code changes.
+ 
