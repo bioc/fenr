@@ -98,9 +98,19 @@ test_that("GO yeast from Ensembl is correct", {
     "GO:0004365", "YGR192C"
   )
 
-  mart <- biomaRt::useEnsembl(biomart = "ensembl", dataset = "scerevisiae_gene_ensembl")
-  re <- fetch_go(mart = mart)
-  test_fetched_structure(re)
-  test_terms(re$terms, expected_terms)
-  test_mapping(re$mapping, expected_mapping, "ensembl_gene_id")
+  mart <- tryCatch(
+    {biomaRt::useEnsembl(biomart = "ensembl", dataset = "scerevisiae_gene_ensembl")},
+    error = function(cond) {
+      message("Biomart is not responding.")
+      message(conditionMessage(cond))
+      NULL
+    }
+  )
+
+  if(!is.null(mart)) {
+    re <- fetch_go(mart = mart)
+    test_fetched_structure(re)
+    test_terms(re$terms, expected_terms)
+    test_mapping(re$mapping, expected_mapping, "ensembl_gene_id")
+  }
 })

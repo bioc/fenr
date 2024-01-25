@@ -83,6 +83,21 @@ test_that("Expected correct output", {
 })
 
 
+test_that("Duplicate term-gene pairs are removed", {
+  extra_row <- mapping[1, ]
+  mapping_dup <- mapping |>
+    dplyr::add_row(extra_row)
+  td <- prepare_for_enrichment(terms, mapping_dup, feature_name = "feature_id")
+  returned <- td$term2feature[[extra_row$term_id]] |>
+    sort()
+  expected <- mapping |>
+    dplyr::filter(term_id == extra_row$term_id) |>
+    dplyr::pull(feature_id) |>
+    sort()
+  expect_equal(expected, returned)
+})
+
+
 test_that("Wrong columns in terms", {
   trms <- terms |>
     dplyr::rename(gobble = term_id)

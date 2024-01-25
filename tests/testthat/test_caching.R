@@ -62,3 +62,13 @@ test_that("Multiple entries behaviour", {
   expect_equal(re_content, expected_content)
 })
 
+
+test_that("Clearing cache", {
+  remove_cache(ask = FALSE)
+
+  cache <- cache_location()
+  bfc <- BiocFileCache::BiocFileCache(cache, ask = FALSE)
+  cnt <- BiocFileCache::bfccount(bfc)
+
+  expect_equal(cnt, 0)
+})

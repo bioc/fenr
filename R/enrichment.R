@@ -107,7 +107,8 @@ prepare_for_enrichment <- function(terms, mapping, all_features = NULL,
   feature_term <- mapping |>
     dplyr::rename(feature_id = !!feature_name) |>
     dplyr::filter(feature_id %in% all_features) |>
-    dplyr::select(feature_id, term_id)
+    dplyr::select(feature_id, term_id) |>
+    dplyr::distinct()
 
   # Feature to terms hash
   f2t <- feature_term |>

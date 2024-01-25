@@ -84,10 +84,11 @@ cached_url_path <- function(rname, fpath, use_cache) {
 #' This function will remove all cached data used by `fenr`. The user will be
 #' prompted for confirmation. Use with caution!
 #'
+#' @param ask Logical, whether to ask user for confirmation.
 #' @return TRUE if successfully removed.
 #' @noRd
-remove_cache <- function() {
+remove_cache <- function(ask = TRUE) {
   cache <- cache_location()
   bfc <- BiocFileCache::BiocFileCache(cache, ask = FALSE)
-  BiocFileCache::removebfc(bfc, ask = TRUE)
+  BiocFileCache::removebfc(bfc, ask = ask)
 }

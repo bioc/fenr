@@ -53,8 +53,10 @@ If \code{species} is provided, mapping from a Gene Ontology GAF file
 }
 \examples{
 # Fetch GO data from Ensembl
+\dontrun{
 mart <- biomaRt::useEnsembl(biomart = "ensembl", dataset = "scerevisiae_gene_ensembl")
 go_data_ensembl <- fetch_go(mart = mart, on_error = "warn")
+}
 # Fetch GO data from Gene Ontology
 go_data_go <- fetch_go(species = "sgd", on_error = "warn")
 }

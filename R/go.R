@@ -322,8 +322,10 @@ fetch_go_from_bm <- function(mart, use_cache = TRUE) {
 #' @importFrom assertthat assert_that
 #' @examples
 #' # Fetch GO data from Ensembl
+#' \dontrun{
 #' mart <- biomaRt::useEnsembl(biomart = "ensembl", dataset = "scerevisiae_gene_ensembl")
 #' go_data_ensembl <- fetch_go(mart = mart, on_error = "warn")
+#' }
 #' # Fetch GO data from Gene Ontology
 #' go_data_go <- fetch_go(species = "sgd", on_error = "warn")
 fetch_go <- function(species = NULL, mart = NULL, use_cache = TRUE, on_error = c("stop", "warn")) {
