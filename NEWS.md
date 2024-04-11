@@ -139,6 +139,10 @@
  - Bug fix: if feature id - term id mapping is not unique (which can happen), features are duplicated in counting; fixed by `dplyr::distinct()` on mapping
  - Correction in vignette: using yeast genome for `topGO`, instead of human.
  - Improving test coverage
- - Making tests and examples resilient to Ensembl outage.
 
+## Version 1.0.6
 
+ - Changed the Ensembl mapping file downloaded from Reactome to "Physical entity" mapping, as it contains gene symbols, in addition to the Ensembl IDs.
+ - Changed the name of GAF column `DB Object Synonym` from `gene_synonym` to `gene_id` for consistency with other methods.
+ - Corrected Reactome test as it failed with multiple gene symbols per gene id.
+ - Replaced biomaRt with a single RESTful XML call; as biomaRt is used only once to obtain GO terms, this replacement reduced dependency footprint of the package

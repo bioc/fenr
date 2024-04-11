@@ -11,7 +11,7 @@ get_reactome_url <- function() {
 #' @return A string with URL.
 #' @noRd
 get_reactome_ensembl_file <- function() {
-  getOption("REACTOME_ENSEMBL_FILE", "https://reactome.org/download/current/Ensembl2Reactome.txt")
+  getOption("REACTOME_ENSEMBL_FILE", "https://reactome.org/download/current/Ensembl2Reactome_PE_Pathway.txt")
 }
 
 #' URL of Reactome gene association file
@@ -100,17 +100,20 @@ fetch_reactome_pathways <- function(tax_id, on_error = "stop") {
 #' @noRd
 fetch_reactome_ensembl_genes <- function(spec, use_cache = TRUE, on_error = "stop") {
   # Binding variables from non-standard evaluation locally
-  species <- gene_id <- term_id <- NULL
+  species <- gene_id <- gene_name <- gene_symbol <- term_id <- NULL
 
   ensembl_file <- get_reactome_ensembl_file()
   if(!assert_url_path(ensembl_file, on_error))
     return(NULL)
 
   lpath <- cached_url_path("ensembl2reactome", ensembl_file, use_cache)
-  colms <- c("gene_id", "term_id", "url", "event", "evidence", "species")
+  colms <- c("gene_id", "reactome_gene_id", "gene_name", "term_id", "url", "event", "evidence", "species")
   readr::read_tsv(lpath, col_names = colms, show_col_types = FALSE) |>
     dplyr::filter(species == spec) |>
-    dplyr::select(gene_id, term_id) |>
+    dplyr::mutate(gene_symbol = stringr::str_remove(gene_name, "\\s.+$")) |>
+    dplyr::select(gene_id, gene_symbol, term_id) |>
+    # Apart from gene symbols there are other entities in Reactome
+    dplyr::filter(stringr::str_detect(gene_symbol, "^[A-Z0-9]+$")) |>
     dplyr::distinct()
 }
 
@@ -208,14 +211,16 @@ fetch_reactome_api_genes <- function(pathways, on_error) {
 #' (Ensembl gene ID or gene symbol and pathway ID) from Reactome.
 #'
 #' @details Reactome makes mapping between Ensembl ID and pathway ID available
-#'   in form of one downloadable file. Also, a gene association file with
-#'   mapping between UniProt accession number, gene symbol and Reactome term is
-#'   available.  If \code{source = "ensembl"} or \code{source =
+#'   in form of one downloadable file. This mapping contains gene symbols as
+#'   well. Also, a gene association file with mapping between UniProt accession
+#'   number, gene symbol and Reactome term is available. If \code{source =
+#'   "ensembl"} or \code{source =
 #'   "gene_association"} is set, one large file will be downloaded and parsed.
 #'   If \code{source = "api"} is set, then Reactome APIs will be interrogated
 #'   for each pathway available. This method is considerably slower, especially
 #'   for large genomes. However, gene association file contains far fewer
-#'   mappings than can be extracted using API.
+#'   mappings than can be extracted using API. If gene symbols are needed, we
+#'   recommend using  \code{source = "ensembl"}.
 #'
 #' @param species Reactome species designation, for example "Homo sapiens" for
 #'   human. Full list of available species can be found using

@@ -22,6 +22,30 @@ get_go_annotation_url <- function() {
   getOption("GO_ANNOTATION_URL", "http://current.geneontology.org/annotations")
 }
 
+#' URL of Ensembl's biomart
+#'
+#' @return A string with URL.
+#' @noRd
+get_biomart_url <- function() {
+  getOption("ENSEMBL_BIOMART", "http://www.ensembl.org")
+}
+
+# See https://www.ensembl.org/info/data/biomart/biomart_restful.html for more details.
+get_biomart_xml <- function(dataset) {
+stringr::str_glue("
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE Query>
+<Query virtualSchemaName = 'default' uniqueRows = '1' count='0' datasetConfigVersion='0.6' header='1' formatter='TSV' requestid='biomaRt'>
+  <Dataset name = '{dataset}'>
+    <Attribute name = 'ensembl_gene_id'/>
+    <Attribute name = 'external_gene_name'/>
+    <Attribute name = 'go_id'/>
+  </Dataset>
+</Query>") |>
+    stringr::str_replace_all("\n", "") |>
+    stringr::str_replace_all("\\>\\s+\\<", "><")
+}
+
 #' Parse OBO file and return a tibble with key and value
 #'
 #' @param obo Obo file content as a character vector
@@ -169,7 +193,7 @@ fetch_go_species <- function(on_error = c("stop", "warn")) {
 #' @noRd
 fetch_go_genes_go <- function(species, use_cache, on_error = "stop") {
   # Binding variables from non-standard evaluation locally
-  gene_synonym <- db_object_synonym <- symbol <- NULL
+  gene_id <- db_object_synonym <- symbol <- NULL
   db_id <- go_term <- NULL
 
   url <- get_go_annotation_url()
@@ -180,8 +204,8 @@ fetch_go_genes_go <- function(species, use_cache, on_error = "stop") {
   lpath <- cached_url_path(stringr::str_glue("go_gaf_{species}"), gaf_file, use_cache)
   readr::read_tsv(lpath, comment = "!", quote = "", col_names = GAF_COLUMNS,
                   col_types = GAF_TYPES) |>
-    dplyr::mutate(gene_synonym = stringr::str_remove(db_object_synonym, "\\|.*$")) |>
-    dplyr::select(gene_symbol = symbol, gene_synonym, db_id, term_id = go_term) |>
+    dplyr::mutate(gene_id = stringr::str_remove(db_object_synonym, "\\|.*$")) |>
+    dplyr::select(gene_symbol = symbol, gene_id, db_id, term_id = go_term) |>
     dplyr::distinct()
 }
 
@@ -196,7 +220,7 @@ fetch_go_genes_go <- function(species, use_cache, on_error = "stop") {
 #'   file (DB Object Symbol) is returned as \code{gene_symbol}, but, depending
 #'   on the \code{species} argument it can contain other entities, e.g. RNA or
 #'   protein complex names. Similarly, the eleventh column of the GAF file (DB
-#'   Object Synonym) is returned as \code{gene_synonym}. It is up to the user to
+#'   Object Synonym) is returned as \code{gene_id}. It is up to the user to
 #'   select the appropriate database.
 #'
 #' @param species Species designation. Examples are \file{goa_human} for human,
@@ -232,28 +256,35 @@ fetch_go_from_go <- function(species, use_cache, on_error = "stop") {
 
 #' Download GO term gene mapping from Ensembl
 #'
-#' @param mart Object class \code{Mart} representing connection to BioMart
-#'   database, created with, e.g., \code{useEnsembl}.
+#' @param dataset Dataset you want to use. To see the different datasets
+#'   available within a biomaRt you can e.g. do: mart <-
+#'   biomaRt::useEnsembl(biomart = "ensembl"), followed by
+#'   biomaRt::listDatasets(mart).
 #' @param use_cache Logical, if TRUE, the remote data will be cached locally.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
-#' @return A tibble with columns \code{ensembl_gene_id}, \code{gene_symbol} and
+#' @return A tibble with columns \code{gene_id}, \code{gene_symbol} and
 #'   \code{term_id}.
 #' @noRd
-fetch_go_genes_bm <- function(mart, use_cache = TRUE) {
-  # Binding variables from non-standard evaluation locally
-  external_gene_name <- term_id <- go_id <- NULL
+fetch_go_genes_bm <- function(dataset, use_cache = TRUE, on_error = c("stop", "warn")) {
+  xml <- get_biomart_xml(dataset) |>
+    stringr::str_replace_all("\\s", "%20")
+  qry <- paste0(get_biomart_url(), "/biomart/martservice?query=", xml)
+  if(!assert_url_path(qry, on_error))
+    return(NULL)
 
-  biomaRt::getBM(
-    attributes = c("ensembl_gene_id", "external_gene_name", "go_id"),
-    mart = mart,
-    useCache = use_cache
-  ) |>
-    dplyr::rename(
-      gene_symbol = external_gene_name,
-      term_id = go_id
-    ) |>
-    dplyr::filter(term_id != "") |>
-    tibble::as_tibble()
+  # Problems with cache, bfcneedsupdate returns error for this query
+  # lpath <- cached_url_path(stringr::str_glue("biomart_{dataset}"), qry, use_cache)
+  res <- readr::read_tsv(qry, show_col_types = FALSE)
+  if(ncol(res) == 3) {
+    res |> rlang::set_names(c("gene_id", "gene_symbol", "term_id"))
+  } else {
+    warning("Problem with Biomart")
+    return(NULL)
+  }
 }
 
 
@@ -263,18 +294,27 @@ fetch_go_genes_bm <- function(mart, use_cache = TRUE) {
 #' Download term information (GO term ID and name) and gene-term mapping
 #' (gene ID, symbol and GO term ID) from Ensembl.
 #'
-#' @param mart Object class \code{Mart} representing connection to BioMart
-#'   database, created with, e.g., \code{useEnsembl}.
-##' @param use_cache Logical, if TRUE, the remote file will be cached locally.
+#' @param dataset Dataset you want to use. To see the different datasets
+#'   available within a biomaRt you can e.g. do: mart <-
+#'   biomaRt::useEnsembl(biomart = "ensembl"), followed by
+#'   biomaRt::listDatasets(mart).
+#' @param use_cache Logical, if TRUE, the remote file will be cached locally.
+#' @param on_error A character vector specifying the error handling method. It
+#'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
+#'   will halt the function execution and throw an error, while `"warn"` will
+#'   issue a warning and return `NULL`.
 #'
+#' @importFrom assertthat assert_that is.string
 #' @return A list with \code{terms} and \code{mapping} tibbles.
 #' @noRd
-fetch_go_from_bm <- function(mart, use_cache = TRUE) {
-  assert_that(!missing(mart), msg = "Argument 'mart' is missing.")
-  assert_that(is(mart, "Mart"))
+fetch_go_from_bm <- function(dataset, use_cache = TRUE, on_error = c("stop", "warn")) {
+  assert_that(!missing(dataset), msg = "Argument 'dataset' is missing.")
+  assert_that(is.string(dataset))
 
-  terms <- fetch_go_terms(use_cache = use_cache)
-  mapping <- fetch_go_genes_bm(mart, use_cache = use_cache)
+  terms <- fetch_go_terms(use_cache = use_cache, on_error)
+  mapping <- fetch_go_genes_bm(dataset, use_cache = use_cache)
+  if(is.null(mapping))
+    error_response("Could not retrieve mapping from Ensembl", on_error)
 
   list(
     terms = terms,
@@ -297,20 +337,22 @@ fetch_go_from_bm <- function(mart, use_cache = TRUE) {
 #'   Symbol) is returned as \code{gene_symbol}, but, depending on the
 #'   \code{species} argument it can contain other entities, e.g. RNA or protein
 #'   complex names. Similarly, the eleventh column of the GAF file (DB Object
-#'   Synonym) is returned as \code{gene_synonym}. It is up to the user to select
+#'   Synonym) is returned as \code{gene_id}. It is up to the user to select
 #'   the appropriate database.
 #'
-#'   Alternatively, if \code{mart} is provided, mapping will be downloaded from
-#'   Ensembl database. It will gene symbol and Ensembl gene ID.
+#'   Alternatively, if \code{dataset} is provided, mapping will be downloaded
+#'   from Ensembl database. It will gene symbol and Ensembl gene ID.
 #'
 #' @param species (Optional) Species designation. Examples are \code{goa_human}
 #'   for human, \code{mgi} for mouse, or \code{sgd} for yeast. Full list of
 #'   available species can be obtained using \code{fetch_go_species} - column
 #'   \code{designation}. This argument is used when fetching data from the Gene
 #'   Ontology database.
-#' @param mart (Optional) Object class \code{Mart} representing connection to
-#'   BioMart database, created with, e.g., \code{useEnsembl}. This argument is
-#'   used when fetching data from the Ensembl database.
+#' @param dataset (Optional) A string representing the dataset passed to
+#'   Ensebml's Biomart, e.g. 'scerevisiae_gene_ensembl'. To see the different
+#'   datasets available within a biomaRt you can e.g. do: mart <-
+#'   biomaRt::useEnsembl(biomart = "ensembl"), followed by
+#'   biomaRt::listDatasets(mart).
 #' @param use_cache Logical, if TRUE, the remote data will be cached locally.
 #' @param on_error A character vector specifying the error handling method. It
 #'   can take values `"stop"` or `"warn"`. The default is `"stop"`. `"stop"`
@@ -322,23 +364,20 @@ fetch_go_from_bm <- function(mart, use_cache = TRUE) {
 #' @importFrom assertthat assert_that
 #' @examples
 #' # Fetch GO data from Ensembl
-#' \dontrun{
-#' mart <- biomaRt::useEnsembl(biomart = "ensembl", dataset = "scerevisiae_gene_ensembl")
-#' go_data_ensembl <- fetch_go(mart = mart, on_error = "warn")
-#' }
+#' go_data_ensembl <- fetch_go(dataset = "scerevisiae_gene_ensembl", on_error = "warn")
 #' # Fetch GO data from Gene Ontology
 #' go_data_go <- fetch_go(species = "sgd", on_error = "warn")
-fetch_go <- function(species = NULL, mart = NULL, use_cache = TRUE, on_error = c("stop", "warn")) {
+fetch_go <- function(species = NULL, dataset = NULL, use_cache = TRUE, on_error = c("stop", "warn")) {
   on_error <- match.arg(on_error)
 
-  assert_that(!(is.null(species) & is.null(mart)),
-              msg = "One of the arguments 'species' or 'mart' must be supplied.")
-  assert_that(is.null(species) | is.null(mart),
-              msg = "Only one of the arguments 'species' or 'mart' must be supplied.")
+  assert_that(!(is.null(species) & is.null(dataset)),
+              msg = "One of the arguments 'species' or 'dataset' must be supplied.")
+  assert_that(is.null(species) | is.null(dataset),
+              msg = "Only one of the arguments 'species' or 'dataset' must be supplied.")
 
   if (!is.null(species)) {
-    fetch_go_from_go(species, use_cache = use_cache)
+    fetch_go_from_go(species, use_cache = use_cache, on_error = on_error)
   } else  {
-    fetch_go_from_bm(mart, use_cache = use_cache)
+    fetch_go_from_bm(dataset, use_cache = use_cache, on_error = on_error)
   }
 }

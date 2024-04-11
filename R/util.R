@@ -237,10 +237,30 @@ catch_error <- function(server, resp, on_error = c("stop", "warn")) {
   desc <- httr2::resp_status_desc(resp)
   st <- stringr::str_glue("Cannot access {server}. {status}: {desc}.")
 
+  error_response(st, on_error)
+}
+
+#' Error Response Handler
+#'
+#' This function handles errors by either stopping execution or issuing a warning
+#' based on the specified action. It is designed to provide a standardized way to
+#' handle error messages within functions.
+#'
+#' @param msg A character string specifying the error message to be displayed.
+#' @param on_error A character string indicating the error handling strategy:
+#'   either "stop" to halt execution, or "warn" to issue a warning and return `NULL`.
+#'   Defaults to "stop".
+#'
+#' @return No return value if `on_error` is "stop". If `on_error` is "warn",
+#'   the function returns `NULL` after issuing a warning.
+#' @noRd
+error_response <- function(msg, on_error = c("stop", "warn")) {
+  on_error <- match.arg(on_error)
+
   if(on_error == "stop") {
-    stop(st)
+    stop(msg)
   } else {
-    warning(st, "\nNULL returned.", call. = FALSE)
+    warning(msg, "\nNULL returned.", call. = FALSE)
     return(NULL)
   }
 }
@@ -255,6 +275,8 @@ catch_error <- function(server, resp, on_error = c("stop", "warn")) {
 #' @param path A string specifying the path of the specific API endpoint.
 #' @param parameters An optional named list of query parameters to be included
 #'   in the request.
+#' @param body A string with the raw body (e.q. an XML query) to be included in
+#'   the request.
 #' @param timeout Timeout limit in secods.
 #'
 #' @return A list containing the following elements:
@@ -266,17 +288,23 @@ catch_error <- function(server, resp, on_error = c("stop", "warn")) {
 #' }
 #'
 #' @details The function constructs a request using the base URL and the path.
-#' If provided, query parameters are appended to the request. The function then
-#' performs the request and checks for errors. It returns a list containing the
-#' response, error status, HTTP status code, and the description of the status.
+#'   If provided, query parameters are appended to the request. The function
+#'   then performs the request and checks for errors. It returns a list
+#'   containing the response, error status, HTTP status code, and the
+#'   description of the status.
 #' @noRd
-api_query <- function(base_url, path, parameters = NULL, timeout = 15) {
+api_query <- function(base_url, path, parameters = NULL, body = NULL, timeout = 15) {
   req <- httr2::request(base_url) |>
     httr2::req_url_path_append(path)
 
   if(!is.null(parameters)) {
     req <- req |>
       httr2::req_url_query(!!!parameters)
+  }
+
+  if(!is.null(body)) {
+    req <- req |>
+      httr2::req_body_raw(body)
   }
 
   resp <- req |>

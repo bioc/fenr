@@ -36,14 +36,16 @@ Download term information (pathway ID and name) and gene-pathway mapping
 }
 \details{
 Reactome makes mapping between Ensembl ID and pathway ID available
-  in form of one downloadable file. Also, a gene association file with
-  mapping between UniProt accession number, gene symbol and Reactome term is
-  available.  If \code{source = "ensembl"} or \code{source =
+  in form of one downloadable file. This mapping contains gene symbols as
+  well. Also, a gene association file with mapping between UniProt accession
+  number, gene symbol and Reactome term is available. If \code{source =
+  "ensembl"} or \code{source =
   "gene_association"} is set, one large file will be downloaded and parsed.
   If \code{source = "api"} is set, then Reactome APIs will be interrogated
   for each pathway available. This method is considerably slower, especially
   for large genomes. However, gene association file contains far fewer
-  mappings than can be extracted using API.
+  mappings than can be extracted using API. If gene symbols are needed, we
+  recommend using  \code{source = "ensembl"}.
 }
 \examples{
 reactome_data <- fetch_reactome("Saccharomyces cerevisiae", on_error = "warn")

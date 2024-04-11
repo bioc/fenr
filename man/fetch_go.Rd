@@ -6,7 +6,7 @@
 \usage{
 fetch_go(
   species = NULL,
-  mart = NULL,
+  dataset = NULL,
   use_cache = TRUE,
   on_error = c("stop", "warn")
 )
@@ -18,9 +18,11 @@ available species can be obtained using \code{fetch_go_species} - column
 \code{designation}. This argument is used when fetching data from the Gene
 Ontology database.}
 
-\item{mart}{(Optional) Object class \code{Mart} representing connection to
-BioMart database, created with, e.g., \code{useEnsembl}. This argument is
-used when fetching data from the Ensembl database.}
+\item{dataset}{(Optional) A string representing the dataset passed to
+Ensebml's Biomart, e.g. 'scerevisiae_gene_ensembl'. To see the different
+datasets available within a biomaRt you can e.g. do: mart <-
+biomaRt::useEnsembl(biomart = "ensembl"), followed by
+biomaRt::listDatasets(mart).}
 
 \item{use_cache}{Logical, if TRUE, the remote data will be cached locally.}
 
@@ -45,18 +47,15 @@ If \code{species} is provided, mapping from a Gene Ontology GAF file
   Symbol) is returned as \code{gene_symbol}, but, depending on the
   \code{species} argument it can contain other entities, e.g. RNA or protein
   complex names. Similarly, the eleventh column of the GAF file (DB Object
-  Synonym) is returned as \code{gene_synonym}. It is up to the user to select
+  Synonym) is returned as \code{gene_id}. It is up to the user to select
   the appropriate database.
 
-  Alternatively, if \code{mart} is provided, mapping will be downloaded from
-  Ensembl database. It will gene symbol and Ensembl gene ID.
+  Alternatively, if \code{dataset} is provided, mapping will be downloaded
+  from Ensembl database. It will gene symbol and Ensembl gene ID.
 }
 \examples{
 # Fetch GO data from Ensembl
-\dontrun{
-mart <- biomaRt::useEnsembl(biomart = "ensembl", dataset = "scerevisiae_gene_ensembl")
-go_data_ensembl <- fetch_go(mart = mart, on_error = "warn")
-}
+go_data_ensembl <- fetch_go(dataset = "scerevisiae_gene_ensembl", on_error = "warn")
 # Fetch GO data from Gene Ontology
 go_data_go <- fetch_go(species = "sgd", on_error = "warn")
 }

@@ -76,7 +76,9 @@ test_that("Correct Reactome Ensembl from yeast", {
     expect_equal(nrow(expected_pathways), nrow(merged))
 
     # Check mapping
-    mapping <- re$mapping
+    mapping <- re$mapping |>
+      dplyr::select(gene_id, term_id) |>
+      dplyr::distinct()
     expect_is(mapping, "tbl")
     merged <- expected_ensembl |>
       dplyr::left_join(mapping, by = c("term_id", "gene_id")) |>

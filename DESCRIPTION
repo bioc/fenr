@@ -1,6 +1,6 @@
 Package: fenr
 Title: Fast functional enrichment for interactive applications
-Version: 1.0.5
+Version: 1.0.6
 Authors@R: person(
     given = "Marek",
     family = "Gierlinski",
@@ -18,7 +18,7 @@ Description: Perform fast functional enrichment on feature lists (like genes
     packages. 
 URL: https://github.com/bartongroup/fenr
 BugReports: https://github.com/bartongroup/fenr/issues
-Depends: R (>= 4.3.0)
+Depends: R (>= 4.1.0)
 License: MIT + file LICENSE
 Encoding: UTF-8
 biocViews:
@@ -44,7 +44,6 @@ Imports:
     httr2,
     rvest,
     progress,
-    biomaRt,
     BiocFileCache,
     shiny,
     ggplot2
@@ -54,6 +53,6 @@ Suggests:
     knitr,
     rmarkdown,
     topGO
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 VignetteBuilder: knitr
 LazyData: false
