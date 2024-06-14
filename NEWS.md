@@ -167,4 +167,7 @@
  - Made sure the package passes BUILD and CHECK with no internet connection.
  - Correction in vignette: using yeast genome for `topGO`, instead of human (somehow it was not applied in 1.0.5).
 
+## Version 1.2.1
+
+ - Go term namespace added to the information extracted by `fetch_go`.
 

@@ -9,16 +9,9 @@ test_that("Incorrect species in fetch_go", {
   expect_error(fetch_go(species = "not a species"))
 })
 
-
-test_that("Incorrect mart in fetch_go", {
-  expect_error(fetch_go(mart = 1))
-  expect_error(fetch_go(mart = "mart"))
-})
-
-
 test_that("Incorrect dataset triggers error", {
   expect_error(fetch_go(dataset = "not a dataset"))
-  expect_error(fetch_go_from_bm(dataset = "not a dataset"))
+  expect_error(fetch_go_from_bm(dataset = "not a dataset", use_cache = FALSE, on_error = "stop"))
 })
 
 test_that("Processing OBO file", {

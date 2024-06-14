@@ -99,16 +99,17 @@ parse_obo_file <- function(obo) {
 #' @noRd
 extract_obo_terms <- function(parsed) {
   # Binding variables from non-standard evaluation locally
-  key <- term_id <- value <- term_name <- NULL
+  key <- term_id <- value <- name <- term_name <- namespace <- NULL
 
   terms <- parsed |>
-    dplyr::filter(key == "name") |>
-    dplyr::select(term_id, term_name = value)
+    dplyr::filter(key %in% c("name", "namespace")) |>
+    tidyr::pivot_wider(id_cols = term_id, names_from = key, values_from = value) |>
+    dplyr::rename(term_name = name)
 
   alt_terms <- parsed |>
     dplyr::filter(key == "alt_id") |>
     dplyr::left_join(terms, by = "term_id") |>
-    dplyr::select(term_id = value, term_name)
+    dplyr::select(term_id = value, term_name, namespace)
 
   dplyr::bind_rows(
     terms,
