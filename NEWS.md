@@ -190,3 +190,7 @@
 ## Version 1.8.1
 
  - Top gene ontology URL does not seem to be accessible directly anymore; changed the URL in `fetch_go_genes_go()` accordingly.
+
+## Version 1.9.2
+
+ - Corrected response to the error message from the responsive WikiPathways server, so it does not through error when `on_error = "warn"`.

@@ -45,8 +45,11 @@ fetch_wiki_pathways <- function(species, on_error) {
     return(catch_error("WikiPathways", resp, on_error))
 
   js <- httr2::resp_body_json(resp$response)
-  if(is(js[[1]], "character") && js[[1]] == "error")
-    stop(stringr::str_glue("Cannot retrieve pathways from WikiPathways for species {species}."))
+  # Sometimes WikiPathways server responds OK, but returns "error" text
+  if(is(js[[1]], "character") && js[[1]] == "error") {
+    msg <- stringr::str_glue("Cannot retrieve pathways from WikiPathways for species {species}.")
+    return(error_response(msg, on_error))
+  }
 
   js$pathways |>
     purrr::map(tibble::as_tibble) |>
