@@ -26,5 +26,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Marek Gierlinski \email{M.Gierlinski@dundee.ac.uk} (\href{https://orcid.org/0000-0001-9149-3514}{ORCID})
 
+Authors:
+\itemize{
+  \item Marek Gierlinski \email{M.Gierlinski@dundee.ac.uk} (\href{https://orcid.org/0000-0001-9149-3514}{ORCID})
+}
+
 }
 \keyword{internal}

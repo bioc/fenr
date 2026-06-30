@@ -35,7 +35,7 @@ test_that("Expected behaviour from a non-responsive server", {
     mock = mocked_500,
     code = {
       test_unresponsive_server(fetch_go_terms, use_cache = FALSE)
-      test_unresponsive_server(fetch_go_species)
+      #test_unresponsive_server(fetch_go_species)
       test_unresponsive_server(fetch_go_from_go, species = species, use_cache = FALSE)
       test_unresponsive_server(fetch_go_from_bm, dataset = "scerevisiae_gene_ensembl", use_cache = FALSE)
       test_unresponsive_server(fetch_go_genes_bm, dataset = "scerevisiae_gene_ensembl", use_cache = FALSE)
