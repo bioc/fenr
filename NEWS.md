@@ -194,3 +194,7 @@
 ## Version 1.9.2
 
  - Corrected response to the error message from the responsive WikiPathways server, so it does not through error when `on_error = "warn"`.
+
+ ## Version 1.11.1
+
+  - Replaced fetch_go_species() - species designation discovery - by scraping geneontology.org website with a fixed saved table. This is because geneontology completely changed the species website and the naming convention. This is a temporary fix.
