@@ -140,20 +140,25 @@ fetch_go_terms <- function(use_cache, on_error) {
 }
 
 
-
 #' Find all species available from geneontology.org
 #'
-#' This function attempts to scrape HTML web page containing a table of
-#' available species and corresponding file names. If the structure of the page
-#' changes one day and the function stops working, go to
-#' \url{http://current.geneontology.org/products/pages/downloads.html} and check
-#' file names. The species designation used in this package is the GAF file name
-#' without extension (e.g. for a file \file{goa_chicken.gaf} the designation is
-#' \file{goa_chicken}).
+#' This function returns a fixed table of Gene Ontology species designations
+#' included with the package. It is a temporary compatibility patch for legacy
+#' Gene Ontology GAF file names such as \file{goa_human.gaf.gz},
+#' \file{mgi.gaf.gz}, and \file{sgd.gaf.gz}. These legacy file names are still
+#' served by Gene Ontology, but they are no longer listed on the annotation
+#' downloads page that this function previously scraped.
+#'
+#' The returned table may therefore become stale if Gene Ontology removes or
+#' changes the legacy download paths. A future version of \pkg{fenr} may replace
+#' this snapshot with a different discovery mechanism or with the newer
+#' Gene Ontology annotation file names.
 #'
 #' @param on_error A character string indicating the error handling strategy:
 #'   either "stop" to halt execution, "warn" to issue a warning and return
 #'   `NULL` or "ignore" to return `NULL` without warnings. Defaults to "stop".
+#'   This argument is retained for API compatibility; the current implementation
+#'   reads a packaged data table rather than querying a remote server.
 #'
 #' @return A tibble with columns \code{species} and \code{designation}.
 #' @export
@@ -161,28 +166,11 @@ fetch_go_terms <- function(use_cache, on_error) {
 #' go_species <- fetch_go_species(on_error = "warn")
 fetch_go_species <- function(on_error = c("stop", "warn", "ignore")) {
   on_error <- match.arg(on_error)
-  # Binding variables from non-standard evaluation locally
-  species <- designation <- `Species/Database` <- File <- NULL
 
-  url <- get_go_species_url()
-  resp <- http_request(url, "")
-  if(resp$is_error)
-    return(catch_error("GO species website", resp, on_error))
+  go_species <- NULL
 
-  u <- resp$response |>
-    httr2::resp_body_html() |>
-    rvest::html_table()
-
-  u[[1]] |>
-    dplyr::mutate(
-      species = `Species/Database` |>
-        stringr::str_replace_all("\\n", "-") |>
-        stringr::str_replace_all("\\s\\s+", " ") |>
-        stringr::str_replace_all("(\\S)-", "\\1"),
-      designation = File |>
-        stringr::str_remove("\\..*$")
-    ) |>
-    dplyr::select(species, designation)
+  utils::data("go_species", package = "fenr", envir = environment())
+  return(go_species)
 }
 
 
