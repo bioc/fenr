@@ -32,7 +32,7 @@
 
 #' GO-terms data downloaded for the vignette.
 #'
-#' Downloaded using \code{go <- fetch_go(species = "sgd")}
+#' Downloaded using \code{go <- fetch_go(species = "YEAST-mod")}
 #'
 #' @usage data(go)
 #' @format A list of two tibbles

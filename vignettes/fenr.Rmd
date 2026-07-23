@@ -71,10 +71,10 @@ data(go_species)
 ```
 
 ```{r fetch_go, eval=FALSE}
-go <- fetch_go(species = "sgd")
+go <- fetch_go(species = "YEAST-mod")
 ```
 
-`sgd` is a designation for yeast in Gene Ontology. The full list of available species designations can be obtain using the command:
+`YEAST-mod` is a designation for yeast in Gene Ontology. The full list of available species designations can be obtain using the command:
 
 ```{r species, eval=FALSE}
 go_species <- fetch_go_species()
@@ -212,7 +212,7 @@ Though the enrichment test (`runTest`) is fairly fast, completing in about 200 m
 
 ```{r fenr_speed, eval = FALSE}
 # Setting up data for enrichment
-go <- fetch_go(species = "sgd")
+go <- fetch_go(species = "YEAST-mod")
 go_terms <- prepare_for_enrichment(go$terms, go$mapping, exmpl_all,
                                    feature_name = "gene_symbol")
 

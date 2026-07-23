@@ -53,7 +53,7 @@ included in this package, such as \code{fetch_reactome} or
 \examples{
 \dontrun{
 data(exmpl_all)
-go <- fetch_go(species = "sgd")
+go <- fetch_go(species = "YEAST-mod")
 go_terms <- prepare_for_enrichment(go$terms, go$mapping, exmpl_all,
                                    feature_name = "gene_symbol")
 }

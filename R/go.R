@@ -14,12 +14,12 @@ get_go_obo_file <- function() {
   getOption("GO_OBO_FILE", "http://purl.obolibrary.org/obo/go.obo")
 }
 
-#' URL of GO species webpage
+#' URL of GO species metadata file
 #'
 #' @return A string with URL.
 #' @noRd
 get_go_species_url <- function() {
-  getOption("GO_SPECIES_URL", "http://current.geneontology.org/products/pages/downloads.html")
+  getOption("GO_SPECIES_URL", "https://current.geneontology.org/metadata/goex.yaml")
 }
 
 #' URL of GO annotation server
@@ -139,53 +139,171 @@ fetch_go_terms <- function(use_cache, on_error) {
     extract_obo_terms()
 }
 
+#' Parse GO species YAML
+#'
+#' @param goex GO species YAML content as a character vector.
+#'
+#' @return A tibble with GO species metadata.
+#' @noRd
+parse_go_species_yaml <- function(goex) {
+  starts <- stringr::str_which(goex, "^\\s*-\\s+taxon_id:")
+  ends <- c(starts[-1] - 1, length(goex))
+
+  purrr::map2(starts, ends, function(i1, i2) {
+    organism <- goex[i1:i2]
+    organism <- organism[stringr::str_detect(organism, "^\\s*(-\\s+)?[[:alnum:]_]+:")]
+    organism <- stringr::str_remove(organism, "^\\s*-\\s+")
+    organism <- stringr::str_trim(organism)
+
+    entries <- stringr::str_split_fixed(organism, ":\\s*", 2)
+    values <- stringr::str_trim(entries[, 2])
+    values[values == ""] <- NA_character_
+    stats::setNames(as.list(values), entries[, 1])
+  }) |>
+    purrr::map(tibble::as_tibble) |>
+    purrr::list_rbind()
+}
 
 #' Find all species available from geneontology.org
 #'
-#' This function returns a fixed table of Gene Ontology species designations
-#' included with the package. It is a temporary compatibility patch for legacy
-#' Gene Ontology GAF file names such as \file{goa_human.gaf.gz},
-#' \file{mgi.gaf.gz}, and \file{sgd.gaf.gz}. These legacy file names are still
-#' served by Gene Ontology, but they are no longer listed on the annotation
-#' downloads page that this function previously scraped.
-#'
-#' The returned table may therefore become stale if Gene Ontology removes or
-#' changes the legacy download paths. A future version of \pkg{fenr} may replace
-#' this snapshot with a different discovery mechanism or with the newer
-#' Gene Ontology annotation file names.
+#' This function downloads and parses Gene Ontology's organism metadata table
+#' to return the current annotation file species designations. By default, one
+#' preferred designation is returned for each species. Model Organism Database
+#' (MOD) annotations are preferred when they are available; otherwise UniProt
+#' annotations are returned. Set \code{all_sources = TRUE} to return both MOD
+#' and UniProt designations.
 #'
 #' @param on_error A character string indicating the error handling strategy:
 #'   either "stop" to halt execution, "warn" to issue a warning and return
 #'   `NULL` or "ignore" to return `NULL` without warnings. Defaults to "stop".
-#'   This argument is retained for API compatibility; the current implementation
-#'   reads a packaged data table rather than querying a remote server.
+#' @param all_sources Logical, if TRUE, return all available annotation sources
+#'   for each species. If FALSE, return one preferred designation per species.
 #'
-#' @return A tibble with columns \code{species} and \code{designation}.
+#' @return A tibble with Gene Ontology species metadata. Column
+#'   \code{designation} contains species designations used in function
+#'   \code{fetch_go}.
 #' @export
 #' @examples
 #' go_species <- fetch_go_species(on_error = "warn")
-fetch_go_species <- function(on_error = c("stop", "warn", "ignore")) {
+#' go_species_all <- fetch_go_species(on_error = "warn", all_sources = TRUE)
+fetch_go_species <- function(on_error = c("stop", "warn", "ignore"),
+                             all_sources = FALSE) {
   on_error <- match.arg(on_error)
+  assertthat::assert_that(assertthat::is.flag(all_sources))
 
-  go_species <- NULL
+  # Binding variables from non-standard evaluation locally
+  taxon_id <- taxonomic_group <- full_name <- common_name_goc <- code_uniprot <- NULL
+  group <- designation <- tax_id <- source_priority <- species <- common_name <- NULL
+  annotation_source <- NULL
 
-  utils::data("go_species", package = "fenr", envir = environment())
-  return(go_species)
+  resp <- http_request(get_go_species_url(), "")
+  if(resp$is_error)
+    return(catch_error("Gene Ontology", resp, on_error))
+
+  goex <- httr2::resp_body_string(resp$response) |>
+    I() |>
+    readr::read_lines()
+
+  go_species <- parse_go_species_yaml(goex) |>
+    dplyr::select(taxon_id, taxonomic_group, species = full_name,
+                  common_name = common_name_goc, code_uniprot, group) |>
+    dplyr::filter(!is.na(code_uniprot))
+
+  go_species_uniprot <- go_species |>
+    dplyr::mutate(designation = stringr::str_glue("{code_uniprot}-uniprot"),
+                  annotation_source = "UniProt",
+                  source_priority = 2)
+
+  go_species_mod <- go_species |>
+    dplyr::filter(group != "UniProt") |>
+    dplyr::mutate(designation = stringr::str_glue("{code_uniprot}-mod"),
+                  annotation_source = "MOD",
+                  source_priority = 1)
+
+  go_species <- dplyr::bind_rows(go_species_mod, go_species_uniprot) |>
+    dplyr::mutate(tax_id = stringr::str_remove(taxon_id, "^NCBITaxon:")) |>
+    dplyr::select(designation, species, common_name, tax_id, taxonomic_group,
+                  group, annotation_source, source_priority) |>
+    dplyr::arrange(designation) |>
+    dplyr::distinct()
+
+  if(!all_sources) {
+    go_species <- go_species |>
+      dplyr::arrange(tax_id, source_priority, designation) |>
+      dplyr::group_by(tax_id) |>
+      dplyr::slice_head(n = 1) |>
+      dplyr::ungroup()
+  }
+
+  go_species |>
+    dplyr::select(-source_priority)
+}
+
+
+#' Check if GO species are valid
+#'
+#' Checks a species argument against current Gene Ontology designations and
+#' packaged legacy names. Error messages refer users to exported helper
+#' functions.
+#'
+#' @param species A string, species designation or legacy Gene Ontology species
+#'   name.
+#' @param on_error A character string indicating the error handling strategy.
+#'
+#' @return A tibble with valid current and legacy species designations, or
+#'   \code{NULL} if current designations cannot be downloaded and \code{on_error}
+#'   is not \code{"stop"}.
+#' @noRd
+assert_go_species <- function(species, on_error) {
+  assert_that(is.string(species))
+
+  designation <- legacy_name <- NULL
+
+  go_species <- fetch_go_species(on_error, all_sources = TRUE)
+  if(is.null(go_species))
+    return(NULL)
+
+  valid_species <- go_species |>
+    dplyr::select(designation) |>
+    dplyr::bind_rows(go_legacy_mapping |> dplyr::distinct(designation = legacy_name))
+
+  assert_that(species %in% valid_species$designation,
+    msg = stringr::str_glue("Invalid species {species}. Use fetch_go_species() to find current species designations or get_go_legacy_mapping() to inspect legacy names.")
+  )
+  valid_species
+}
+
+
+#' Get Gene Ontology legacy species mapping
+#'
+#' Returns the packaged mapping between legacy Gene Ontology annotation species
+#' names and current annotation file designations. This table is used
+#' internally to keep legacy \code{species} values working in \code{fetch_go()},
+#' but is also exposed so users can inspect or update their own code. Some
+#' legacy names map to more than one current designation.
+#'
+#' @return A tibble with columns \code{legacy_name} and \code{designation}.
+#' @export
+#' @examples
+#' go_legacy_mapping <- get_go_legacy_mapping()
+get_go_legacy_mapping <- function() {
+  go_legacy_mapping
 }
 
 
 #' Download GO term gene mapping from geneontology.org
 #'
 #' @param species Species designation. Base file name for species file under
-#'   \url{http://current.geneontology.org/annotations}. Examples are
-#'   \file{goa_human} for human, \file{mgi} for mouse or \file{sgd} for yeast.
+#'   \url{http://current.geneontology.org/annotations/gaf}. Examples are
+#'   \file{HUMAN-uniprot} for human, \file{MOUSE-mod} for mouse, or
+#'   \file{YEAST-mod} for yeast.
 #' @param use_cache Logical, if TRUE, the remote file will be cached locally.
 #' @param on_error A character string indicating the error handling strategy:
 #'   either "stop" to halt execution, "warn" to issue a warning and return
 #'   `NULL` or "ignore" to return `NULL` without warnings. Defaults to "stop".
 #'
-#' @return A tibble with columns \code{gene_symbol}, \code{uniprot_id}, 
-#'   \code{term_id} and \code{evidence}.
+#' @return A tibble with columns \code{gene_symbol}, \code{gene_id},
+#'   \code{db_id}, \code{term_id}, and \code{evidence}.
 #' @noRd
 fetch_go_genes_go <- function(species, use_cache, on_error) {
   # Binding variables from non-standard evaluation locally
@@ -193,7 +311,7 @@ fetch_go_genes_go <- function(species, use_cache, on_error) {
   db_id <- go_term <- evidence <- NULL
 
   url <- get_go_annotation_url()
-  gaf_file <- stringr::str_glue("{url}/{species}.gaf.gz")
+  gaf_file <- stringr::str_glue("{url}/gaf/{species}.gaf.gz")
   if(!assert_url_path(gaf_file, on_error))
     return(NULL)
 
@@ -203,6 +321,29 @@ fetch_go_genes_go <- function(species, use_cache, on_error) {
     dplyr::mutate(gene_id = stringr::str_remove(db_object_synonym, "\\|.*$")) |>
     dplyr::select(gene_symbol = symbol, gene_id, db_id, term_id = go_term, evidence) |>
     dplyr::distinct()
+}
+
+
+#' Match legacy GO species names to current designations
+#'
+#' @param species Species designation or legacy Gene Ontology species name.
+#' @param on_error A character string indicating the error handling strategy.
+#'
+#' @return A current Gene Ontology species designation, or \code{NULL} if
+#'   \code{species} is an ambiguous legacy name and \code{on_error} is not
+#'   \code{"stop"}.
+#' @noRd
+match_go_legacy_species <- function(species, on_error) {
+ if(species %in% go_legacy_mapping$legacy_name) {
+    new_species <- go_legacy_mapping$designation[go_legacy_mapping$legacy_name == species]
+    if(length(new_species) > 1) {
+      des <- stringr::str_c(new_species, collapse = ', ')
+      msg <- stringr::str_glue("Legacy species {species} corresponds to multiple current designations. Please choose one of: {des}")
+      return(error_response(msg, on_error))
+    }
+    species <- new_species
+  }
+  species
 }
 
 
@@ -219,10 +360,12 @@ fetch_go_genes_go <- function(species, use_cache, on_error) {
 #'   Object Synonym) is returned as \code{gene_id}. It is up to the user to
 #'   select the appropriate database.
 #'
-#' @param species Species designation. Examples are \file{goa_human} for human,
-#'   \file{mgi} for mouse or \file{sgd} for yeast. Full list of available
-#'   species can be obtained using \code{fetch_go_species} - column
-#'   \code{designation}.
+#' @param species Species designation. Examples are \file{HUMAN-uniprot} for
+#'   human, \file{MOUSE-mod} for mouse, or \file{YEAST-mod} for yeast. Legacy
+#'   names such as \file{goa_human}, \file{mgi}, and \file{sgd} are also
+#'   accepted when they map to a single current designation. Current species
+#'   designations can be obtained using \code{fetch_go_species}; legacy mappings
+#'   can be inspected using \code{get_go_legacy_mapping}.
 #' @param use_cache Logical, if TRUE, the remote file will be cached locally.
 #' @param on_error A character string indicating the error handling strategy:
 #'   either "stop" to halt execution, "warn" to issue a warning and return
@@ -233,8 +376,12 @@ fetch_go_genes_go <- function(species, use_cache, on_error) {
 #' @noRd
 fetch_go_from_go <- function(species, use_cache, on_error) {
   assert_that(!missing(species), msg = "Argument 'species' is missing.")
-  assert_species(species, "fetch_go_species", on_error)
+  assert_go_species(species, on_error)
 
+  species <- match_go_legacy_species(species, on_error)
+  if(is.null(species))
+    return(NULL)
+ 
   mapping <- fetch_go_genes_go(species = species, use_cache = use_cache, on_error = on_error)
   if(is.null(mapping))
     return(NULL)
@@ -337,15 +484,18 @@ fetch_go_from_bm <- function(dataset, use_cache, on_error) {
 #'   the appropriate database.
 #'
 #'   Alternatively, if \code{dataset} is provided, mapping will be downloaded
-#'   from Ensembl database. It will gene symbol and Ensembl gene ID.
+#'   from Ensembl database. It will contain gene symbols and Ensembl gene IDs.
 #'
-#' @param species (Optional) Species designation. Examples are \code{goa_human}
-#'   for human, \code{mgi} for mouse, or \code{sgd} for yeast. Full list of
-#'   available species can be obtained using \code{fetch_go_species} - column
-#'   \code{designation}. This argument is used when fetching data from the Gene
-#'   Ontology database.
+#' @param species (Optional) Species designation. Examples are
+#'   \code{HUMAN-uniprot} for human, \code{MOUSE-mod} for mouse, or
+#'   \code{YEAST-mod} for yeast. Legacy names such as \code{goa_human},
+#'   \code{mgi}, and \code{sgd} are also accepted when they map to a single
+#'   current designation. Current species designations can be obtained using
+#'   \code{fetch_go_species}; legacy mappings can be inspected using
+#'   \code{get_go_legacy_mapping}. This argument is used when fetching data from
+#'   the Gene Ontology database.
 #' @param dataset (Optional) A string representing the dataset passed to
-#'   Ensebml's Biomart, e.g. 'scerevisiae_gene_ensembl'. To see the different
+#'   Ensembl's Biomart, e.g. 'scerevisiae_gene_ensembl'. To see the different
 #'   datasets available within a biomaRt you can e.g. do: mart <-
 #'   biomaRt::useEnsembl(biomart = "ensembl"), followed by
 #'   biomaRt::listDatasets(mart).
@@ -361,7 +511,7 @@ fetch_go_from_bm <- function(dataset, use_cache, on_error) {
 #' # Fetch GO data from Ensembl
 #' go_data_ensembl <- fetch_go(dataset = "scerevisiae_gene_ensembl", on_error = "warn")
 #' # Fetch GO data from Gene Ontology
-#' go_data_go <- fetch_go(species = "sgd", on_error = "warn")
+#' go_data_go <- fetch_go(species = "YEAST-mod", on_error = "warn")
 fetch_go <- function(species = NULL, dataset = NULL, use_cache = TRUE,
                      on_error = c("stop", "warn", "ignore")) {
   on_error <- match.arg(on_error)

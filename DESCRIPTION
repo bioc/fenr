@@ -42,7 +42,6 @@ Imports:
     readr,
     stringr,
     httr2,
-    rvest,
     progress,
     BiocFileCache,
     shiny,
