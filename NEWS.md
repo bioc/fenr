@@ -191,10 +191,16 @@
 
  - Top gene ontology URL does not seem to be accessible directly anymore; changed the URL in `fetch_go_genes_go()` accordingly.
 
-## Version 1.9.2
+## Version 1.8.2
 
  - Corrected response to the error message from the responsive WikiPathways server, so it does not through error when `on_error = "warn"`.
 
- ## Version 1.11.1
+ ## Version 1.10.1
 
-  - Replaced fetch_go_species() - species designation discovery - by scraping geneontology.org website with a fixed saved table. This is because geneontology completely changed the species website and the naming convention. This is a temporary fix.
+  - Replaced fetch_go_species() - species designation discovery - by scraping geneontology.org website with a fixed saved table. This is because gene ontology completely changed the species website and the naming convention. This is a temporary fix.
+
+## Version 1.10.2
+
+- A permanent fix to the species naming issue in Gene Ontology. Now `fenr` operates with the new names (e.g. `HUMAN-uniprot`) but also accepts the legacy names (such as `goa_human`) and translates them using a build-in table. Users of legacy GO names should not notice any difference. See Section "A note on Gene Ontology species naming" in the package vignette for more details.
+- A fix to *fetch_kegg_species()* due to a phased out API endpoint.
+
