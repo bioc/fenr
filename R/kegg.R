@@ -21,6 +21,9 @@ get_kegg_url <- function() {
 fetch_kegg_species <- function(on_error = c("stop", "warn", "ignore")) {
   on_error <- match.arg(on_error)
 
+  # Binding variables from non-standard evaluation locally
+  entry <- id <- designation <- species <- NULL
+
   resp <- http_request(get_kegg_url(), "list/genome")
   if(resp$is_error)
     return(catch_error("KEGG", resp, on_error))
