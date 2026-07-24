@@ -120,7 +120,7 @@ match_species <- function(species, fetch_fun, col_name, on_error) {
 #' @export
 #' @examples
 #' \dontrun{
-#' go_data <- fetch_go(species = "sgd")
+#' go_data <- fetch_go(species = "YEAST-mod")
 #' go_terms <- prepare_for_enrichment(go_data$terms, go_data$mapping, feature = "gene_symbol")
 #' feats <- get_term_features(go_terms, "GO:0000001")
 #' }
@@ -145,7 +145,7 @@ get_term_features <- function(term_data, term_id) {
 #' @export
 #' @examples
 #' \dontrun{
-#' go_data <- fetch_go(species = "sgd")
+#' go_data <- fetch_go(species = "YEAST-mod")
 #' go_terms <- prepare_for_enrichment(go_data$terms, go_data$mapping, feature = "gene_symbol")
 #' trms <- get_feature_terms(go_terms, "GEM1")
 #' }

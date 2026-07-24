@@ -4,32 +4,30 @@
 \alias{fetch_go_species}
 \title{Find all species available from geneontology.org}
 \usage{
-fetch_go_species(on_error = c("stop", "warn", "ignore"))
+fetch_go_species(on_error = c("stop", "warn", "ignore"), all_sources = FALSE)
 }
 \arguments{
 \item{on_error}{A character string indicating the error handling strategy:
 either "stop" to halt execution, "warn" to issue a warning and return
-`NULL` or "ignore" to return `NULL` without warnings. Defaults to "stop".
-This argument is retained for API compatibility; the current implementation
-reads a packaged data table rather than querying a remote server.}
+`NULL` or "ignore" to return `NULL` without warnings. Defaults to "stop".}
+
+\item{all_sources}{Logical, if TRUE, return all available annotation sources
+for each species. If FALSE, return one preferred designation per species.}
 }
 \value{
-A tibble with columns \code{species} and \code{designation}.
+A tibble with Gene Ontology species metadata. Column
+  \code{designation} contains species designations used in function
+  \code{fetch_go}.
 }
 \description{
-This function returns a fixed table of Gene Ontology species designations
-included with the package. It is a temporary compatibility patch for legacy
-Gene Ontology GAF file names such as \file{goa_human.gaf.gz},
-\file{mgi.gaf.gz}, and \file{sgd.gaf.gz}. These legacy file names are still
-served by Gene Ontology, but they are no longer listed on the annotation
-downloads page that this function previously scraped.
-}
-\details{
-The returned table may therefore become stale if Gene Ontology removes or
-changes the legacy download paths. A future version of \pkg{fenr} may replace
-this snapshot with a different discovery mechanism or with the newer
-Gene Ontology annotation file names.
+This function downloads and parses Gene Ontology's organism metadata table
+to return the current annotation file species designations. By default, one
+preferred designation is returned for each species. Model Organism Database
+(MOD) annotations are preferred when they are available; otherwise UniProt
+annotations are returned. Set \code{all_sources = TRUE} to return both MOD
+and UniProt designations.
 }
 \examples{
 go_species <- fetch_go_species(on_error = "warn")
+go_species_all <- fetch_go_species(on_error = "warn", all_sources = TRUE)
 }

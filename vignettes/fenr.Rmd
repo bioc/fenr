@@ -71,10 +71,10 @@ data(go_species)
 ```
 
 ```{r fetch_go, eval=FALSE}
-go <- fetch_go(species = "sgd")
+go <- fetch_go(species = "YEAST-mod")
 ```
 
-`sgd` is a designation for yeast in Gene Ontology. The full list of available species designations can be obtain using the command:
+`YEAST-mod` is a designation for yeast in Gene Ontology. The full list of available species designations can be obtain using the command:
 
 ```{r species, eval=FALSE}
 go_species <- fetch_go_species()
@@ -108,6 +108,16 @@ go_terms <- prepare_for_enrichment(go$terms, go$mapping, exmpl_all,
 ```
 
 `exmpl_all` is an example of gene background - a vector with gene symbols related to all detections in an imaginary RNA-seq experiment. Since different datasets use different features (gene id, gene symbol, protein id), the column name containing features in `go$mapping` needs to be specified using `feature_name = "gene_symbol"`. The resulting object, `go_terms`, is a data structure containing all the mappings in a quickly accessible form. From this point on, `go_terms` can be employed to perform multiple functional enrichment analyses on various gene selections.
+
+## A note on Gene Ontology species naming
+
+In June 2026, Gene Ontology (GO) changed the naming convention for species-related filenames ([see announcement](https://github.com/geneontology/go-technical-announcements/issues/20)). Previously used names, such as `goa_human` and `sgd`, became `HUMAN-uniprot` and `YEAST-mod`. This affects how GO species are referenced in the package. To retain backward compatibility, `fenr` accepts legacy names and internally translates them into the new names. The mapping table included with the package can be accessed with the following function:
+
+```{r go_species_mapping}
+get_go_legacy_mapping()
+```
+
+Note that some legacy names (e.g. `cgd`) map to multiple new names. In such cases, using `cgd` will result in an error message asking the user to choose one new name.
 
 ## Functional enrichment
 
@@ -212,7 +222,7 @@ Though the enrichment test (`runTest`) is fairly fast, completing in about 200 m
 
 ```{r fenr_speed, eval = FALSE}
 # Setting up data for enrichment
-go <- fetch_go(species = "sgd")
+go <- fetch_go(species = "YEAST-mod")
 go_terms <- prepare_for_enrichment(go$terms, go$mapping, exmpl_all,
                                    feature_name = "gene_symbol")
 

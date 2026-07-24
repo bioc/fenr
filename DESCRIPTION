@@ -1,6 +1,6 @@
 Package: fenr
 Title: Fast functional enrichment for interactive applications
-Version: 1.10.1
+Version: 1.10.2
 Authors@R: person(
     given = "Marek",
     family = "Gierlinski",
@@ -42,7 +42,6 @@ Imports:
     readr,
     stringr,
     httr2,
-    rvest,
     progress,
     BiocFileCache,
     shiny,

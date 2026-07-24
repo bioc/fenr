@@ -14,6 +14,6 @@ data(go)
 Contains GO-term descriptions and gene mapping.
 }
 \description{
-Downloaded using \code{go <- fetch_go(species = "sgd")}
+Downloaded using \code{go <- fetch_go(species = "YEAST-mod")}
 }
 \keyword{datasets}

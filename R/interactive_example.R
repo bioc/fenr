@@ -16,7 +16,7 @@ fetch_terms_for_example <- function(de) {
 
   # load GO terms
   message("Fetching GO data\n")
-  go <- fetch_go(species = "sgd")
+  go <- fetch_go(species = "YEAST-mod")
   go_data <- prepare_for_enrichment(go$terms, go$mapping, all_genes, feature_name = "gene_id")
 
   # load Reactome pathways

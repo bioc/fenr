@@ -20,7 +20,7 @@ Get terms annotating a given feature.
 }
 \examples{
 \dontrun{
-go_data <- fetch_go(species = "sgd")
+go_data <- fetch_go(species = "YEAST-mod")
 go_terms <- prepare_for_enrichment(go_data$terms, go_data$mapping, feature = "gene_symbol")
 trms <- get_feature_terms(go_terms, "GEM1")
 }

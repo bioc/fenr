@@ -1,0 +1,19 @@
+- taxon_id: NCBITaxon:4932
+  full_name: Saccharomyces cerevisiae
+  common_name_goc: budding yeast
+  code_uniprot: YEAST
+  taxonomic_group: Fungi
+  group: SGD
+
+- taxon_id: NCBITaxon:9606
+  full_name: Homo sapiens
+  common_name_goc: human
+  code_uniprot: HUMAN
+  taxonomic_group: Mammalia
+  group: UniProt
+
+- taxon_id: NCBITaxon:9999
+  full_name: Missing code
+  common_name_goc: missing
+  taxonomic_group: Test group
+  group: UniProt

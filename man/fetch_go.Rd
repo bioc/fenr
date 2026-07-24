@@ -12,14 +12,17 @@ fetch_go(
 )
 }
 \arguments{
-\item{species}{(Optional) Species designation. Examples are \code{goa_human}
-for human, \code{mgi} for mouse, or \code{sgd} for yeast. Full list of
-available species can be obtained using \code{fetch_go_species} - column
-\code{designation}. This argument is used when fetching data from the Gene
-Ontology database.}
+\item{species}{(Optional) Species designation. Examples are
+\code{HUMAN-uniprot} for human, \code{MOUSE-mod} for mouse, or
+\code{YEAST-mod} for yeast. Legacy names such as \code{goa_human},
+\code{mgi}, and \code{sgd} are also accepted when they map to a single
+current designation. Current species designations can be obtained using
+\code{fetch_go_species}; legacy mappings can be inspected using
+\code{get_go_legacy_mapping}. This argument is used when fetching data from
+the Gene Ontology database.}
 
 \item{dataset}{(Optional) A string representing the dataset passed to
-Ensebml's Biomart, e.g. 'scerevisiae_gene_ensembl'. To see the different
+Ensembl's Biomart, e.g. 'scerevisiae_gene_ensembl'. To see the different
 datasets available within a biomaRt you can e.g. do: mart <-
 biomaRt::useEnsembl(biomart = "ensembl"), followed by
 biomaRt::listDatasets(mart).}
@@ -50,11 +53,11 @@ If \code{species} is provided, mapping from a Gene Ontology GAF file
   the appropriate database.
 
   Alternatively, if \code{dataset} is provided, mapping will be downloaded
-  from Ensembl database. It will gene symbol and Ensembl gene ID.
+  from Ensembl database. It will contain gene symbols and Ensembl gene IDs.
 }
 \examples{
 # Fetch GO data from Ensembl
 go_data_ensembl <- fetch_go(dataset = "scerevisiae_gene_ensembl", on_error = "warn")
 # Fetch GO data from Gene Ontology
-go_data_go <- fetch_go(species = "sgd", on_error = "warn")
+go_data_go <- fetch_go(species = "YEAST-mod", on_error = "warn")
 }

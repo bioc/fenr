@@ -29,7 +29,7 @@ BiocManager::install("fenr")
 The initial step involves downloading functional term data. `fenr` supports data downloads from *Gene Ontology*, *Reactome*, *KEGG*, and *WikiPathways*. Custom ontologies can also be used, provided they are converted into an appropriate format (refer to the `prepare_for_enrichment` function for more information). The command below downloads functional terms and gene mapping from Gene Ontology (GO) for yeast:
 
 ```
-go <- fetch_go(species = "sgd")
+go <- fetch_go(species = "YEAST-mod")
 ```
 
 This command returns a list with two tibbles containing term information (`term_id` and `term_name`) and gene-term mapping (`term_id` and `gene_symbol`). We convert this data into an object suitable for fast functional enrichment. `exmpl_all` is an example of gene background provided by the package, which contains a vector with gene symbols related to all detections in an experiment.

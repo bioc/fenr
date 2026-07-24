@@ -21,12 +21,22 @@ get_kegg_url <- function() {
 fetch_kegg_species <- function(on_error = c("stop", "warn", "ignore")) {
   on_error <- match.arg(on_error)
 
-  resp <- http_request(get_kegg_url(), "list/organism")
+  # Binding variables from non-standard evaluation locally
+  entry <- id <- designation <- species <- NULL
+
+  resp <- http_request(get_kegg_url(), "list/genome")
   if(resp$is_error)
     return(catch_error("KEGG", resp, on_error))
 
   st <- httr2::resp_body_string(resp$response)
-  readr::read_tsv(I(st), col_names = c("id", "designation", "species", "phylogeny"), show_col_types = FALSE)
+  readr::read_tsv(I(st), col_names = c("id", "entry"), show_col_types = FALSE) |>
+    tidyr::separate_wider_delim(
+      entry,
+      delim = "; ",
+      names = c("designation", "species"),
+      too_few = "align_start"
+    ) |>
+    dplyr::select(id, designation, species)
 }
 
 
