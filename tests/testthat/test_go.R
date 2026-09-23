@@ -10,6 +10,8 @@ test_that("Incorrect species in fetch_go", {
 })
 
 test_that("Incorrect dataset triggers error", {
+  testthat::skip("BioMart is deprecated, frozen, and no longer reliable for automated tests.")
+  
   expect_error(fetch_go(dataset = "not a dataset"))
   expect_error(fetch_go_from_bm(dataset = "not a dataset", use_cache = FALSE, on_error = "stop"))
 })
@@ -240,6 +242,8 @@ test_that("GO yeast from GO is correct", {
 
 
 test_that("GO yeast from Ensembl is correct", {
+  testthat::skip("BioMart is deprecated, frozen, and no longer reliable for automated tests.")
+
   dataset <- "scerevisiae_gene_ensembl"
 
   expected_terms <- tibble::tribble(

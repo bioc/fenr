@@ -204,3 +204,6 @@
 - A permanent fix to the species naming issue in Gene Ontology. Now `fenr` operates with the new names (e.g. `HUMAN-uniprot`) but also accepts the legacy names (such as `goa_human`) and translates them using a build-in table. Users of legacy GO names should not notice any difference. See Section "A note on Gene Ontology species naming" in the package vignette for more details.
 - A fix to *fetch_kegg_species()* due to a phased out API endpoint.
 
+## Version 1.10.3
+
+ - A deprecation note was added about the `dataset` argument in `fetch_go()` function due to Biomart being retired.

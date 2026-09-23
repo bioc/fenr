@@ -498,7 +498,9 @@ fetch_go_from_bm <- function(dataset, use_cache, on_error) {
 #'   Ensembl's Biomart, e.g. 'scerevisiae_gene_ensembl'. To see the different
 #'   datasets available within a biomaRt you can e.g. do: mart <-
 #'   biomaRt::useEnsembl(biomart = "ensembl"), followed by
-#'   biomaRt::listDatasets(mart).
+#'   biomaRt::listDatasets(mart). Warning: \code{dataset} is now deprecated,
+#'   because Biomart is being retired and frozen at Ensembl release 116. In future
+#'   versions of \code{fenr} this argument will be removed.
 #' @param use_cache Logical, if TRUE, the remote data will be cached locally.
 #' @param on_error A character string indicating the error handling strategy:
 #'   either "stop" to halt execution, "warn" to issue a warning and return
@@ -524,6 +526,14 @@ fetch_go <- function(species = NULL, dataset = NULL, use_cache = TRUE,
   if (!is.null(species)) {
     fetch_go_from_go(species, use_cache = use_cache, on_error = on_error)
   } else {
+    warning(
+      paste0(
+        "Argument 'dataset' is deprecated and will be removed in future ",
+        "versions of fenr. Ensembl's BioMart is being retired and frozen ",
+        "at Ensembl release 116."
+      ),
+      call. = FALSE
+    )
     fetch_go_from_bm(dataset, use_cache = use_cache, on_error = on_error)
   }
 }
