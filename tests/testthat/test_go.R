@@ -142,7 +142,7 @@ test_that("fetch_go accepts unambiguous legacy GO species names", {
   )
   expected_mapping <- tibble::tibble(
     gene_symbol = "ABC1",
-    gene_id = "GENE001",
+    object_synonym = "GENE001",
     db_id = "S000000001",
     term_id = "GO:0000001",
     evidence = "IDA"
@@ -187,7 +187,7 @@ test_that("fetch_go rejects ambiguous legacy GO species names", {
 
 test_that("GO GAF files are parsed into gene mapping", {
   expected <- tibble::tribble(
-    ~gene_symbol, ~gene_id, ~db_id, ~term_id, ~evidence,
+    ~gene_symbol, ~object_synonym, ~db_id, ~term_id, ~evidence,
     "ABC1", "GENE001", "S000000001", "GO:0000001", "IDA",
     "DEF2", "GENE002", "S000000002", "GO:0000002", "IEA"
   )
