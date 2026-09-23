@@ -10,6 +10,8 @@ test_that("Incorrect species in fetch_go", {
 })
 
 test_that("Incorrect dataset triggers error", {
+  testthat::skip("BioMart is deprecated, frozen, and no longer reliable for automated tests.")
+  
   expect_error(fetch_go(dataset = "not a dataset"))
   expect_error(fetch_go_from_bm(dataset = "not a dataset", use_cache = FALSE, on_error = "stop"))
 })
@@ -142,7 +144,7 @@ test_that("fetch_go accepts unambiguous legacy GO species names", {
   )
   expected_mapping <- tibble::tibble(
     gene_symbol = "ABC1",
-    object_synonym = "GENE001",
+    gene_id = "GENE001",
     db_id = "S000000001",
     term_id = "GO:0000001",
     evidence = "IDA"
@@ -187,7 +189,7 @@ test_that("fetch_go rejects ambiguous legacy GO species names", {
 
 test_that("GO GAF files are parsed into gene mapping", {
   expected <- tibble::tribble(
-    ~gene_symbol, ~object_synonym, ~db_id, ~term_id, ~evidence,
+    ~gene_symbol, ~gene_id, ~db_id, ~term_id, ~evidence,
     "ABC1", "GENE001", "S000000001", "GO:0000001", "IDA",
     "DEF2", "GENE002", "S000000002", "GO:0000002", "IEA"
   )
@@ -240,6 +242,8 @@ test_that("GO yeast from GO is correct", {
 
 
 test_that("GO yeast from Ensembl is correct", {
+  testthat::skip("BioMart is deprecated, frozen, and no longer reliable for automated tests.")
+
   dataset <- "scerevisiae_gene_ensembl"
 
   expected_terms <- tibble::tribble(

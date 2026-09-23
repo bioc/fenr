@@ -302,12 +302,12 @@ get_go_legacy_mapping <- function() {
 #'   either "stop" to halt execution, "warn" to issue a warning and return
 #'   `NULL` or "ignore" to return `NULL` without warnings. Defaults to "stop".
 #'
-#' @return A tibble with columns \code{gene_symbol}, \code{object_synonym},
+#' @return A tibble with columns \code{gene_symbol}, \code{gene_id},
 #'   \code{db_id}, \code{term_id}, and \code{evidence}.
 #' @noRd
 fetch_go_genes_go <- function(species, use_cache, on_error) {
   # Binding variables from non-standard evaluation locally
-  object_synonym <- db_object_synonym <- symbol <- NULL
+  gene_id <- db_object_synonym <- symbol <- NULL
   db_id <- go_term <- evidence <- NULL
 
   url <- get_go_annotation_url()
@@ -318,8 +318,8 @@ fetch_go_genes_go <- function(species, use_cache, on_error) {
   lpath <- cached_url_path(stringr::str_glue("go_gaf_{species}"), gaf_file, use_cache)
   readr::read_tsv(lpath, comment = "!", quote = "", col_names = GAF_COLUMNS,
                   col_types = GAF_TYPES) |>
-    dplyr::mutate(object_synonym = stringr::str_remove(db_object_synonym, "\\|.*$")) |>
-    dplyr::select(gene_symbol = symbol, object_synonym, db_id, term_id = go_term, evidence) |>
+    dplyr::mutate(gene_id = stringr::str_remove(db_object_synonym, "\\|.*$")) |>
+    dplyr::select(gene_symbol = symbol, gene_id, db_id, term_id = go_term, evidence) |>
     dplyr::distinct()
 }
 
@@ -357,7 +357,7 @@ match_go_legacy_species <- function(species, on_error) {
 #'   file (DB Object Symbol) is returned as \code{gene_symbol}, but, depending
 #'   on the \code{species} argument it can contain other entities, e.g. RNA or
 #'   protein complex names. Similarly, the eleventh column of the GAF file (DB
-#'   Object Synonym) is returned as \code{object_synonym}. It is up to the user to
+#'   Object Synonym) is returned as \code{gene_id}. It is up to the user to
 #'   select the appropriate database.
 #'
 #' @param species Species designation. Examples are \file{HUMAN-uniprot} for
@@ -480,7 +480,7 @@ fetch_go_from_bm <- function(dataset, use_cache, on_error) {
 #'   Symbol) is returned as \code{gene_symbol}, but, depending on the
 #'   \code{species} argument it can contain other entities, e.g. RNA or protein
 #'   complex names. Similarly, the eleventh column of the GAF file (DB Object
-#'   Synonym) is returned as \code{object_synonym}. It is up to the user to select
+#'   Synonym) is returned as \code{gene_id}. It is up to the user to select
 #'   the appropriate database.
 #'
 #'   Alternatively, if \code{dataset} is provided, mapping will be downloaded

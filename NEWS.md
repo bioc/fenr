@@ -206,5 +206,4 @@
 
 ## Version 1.10.3
 
- - The eleventh column of the GAF file (DB Object Synonym) is now returned as `object_synonym` instead of `gene_id`, to avoid confusion. This will affect the column name returned by `fetch_go()` function in the mapping.
  - A deprecation note was added about the `dataset` argument in `fetch_go()` function due to Biomart being retired.
